@@ -1,0 +1,66 @@
+﻿using Demo_Course_Management.Data;
+using Demo_Course_Management.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace Demo_Course_Management.Repositories
+{
+    public class CategoryRepository
+    {
+        private readonly AppDbContext _context;
+
+        public CategoryRepository(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // check trùng name
+        public async Task<bool> ExistsByNameAsync(string name)
+        {
+            return await _context.Categories
+                .AnyAsync(x => x.Name == name);
+        }
+
+        // check trùng name nhưng loại trừ chính nó (update)
+        public async Task<bool> ExistsByNameExcludeIdAsync(string name, int id)
+        {
+            return await _context.Categories
+                .AnyAsync(x => x.Name == name && x.Id != id);
+        }
+
+        // lấy theo id
+        public async Task<Category?> GetByIdAsync(int id)
+        {
+            return await _context.Categories.FindAsync(id);
+        }
+
+        // lấy tất cả
+        public async Task<List<Category>> GetAllAsync()
+        {
+            return await _context.Categories.ToListAsync();
+        }
+
+        // thêm mới
+        public async Task AddAsync(Category category)
+        {
+            await _context.Categories.AddAsync(category);
+        }
+
+        // update
+        public void Update(Category category)
+        {
+            _context.Categories.Update(category);
+        }
+
+        // xóa
+        public void Remove(Category category)
+        {
+            _context.Categories.Remove(category);
+        }
+
+        // save
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+    }
+}

@@ -5,123 +5,97 @@ using Demo_Course_Management.Data;
 using Demo_Course_Management.Middleware;
 using Demo_Course_Management.Models.Enum;
 using Demo_Course_Management.Models;
+using Demo_Course_Management.Repositories;
 
 namespace Demo_Course_Management.Services
 {
     public class RoleService
     {
-        private readonly AppDbContext _context;
+        private readonly RoleRepository _repo;
 
-        public RoleService(AppDbContext context)
+        public RoleService(RoleRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
+
+        // ================= GET ALL =================
         public async Task<List<RoleResponseDTO>> GetAllAsync()
         {
-            return await _context.Roles
-                .Include(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permission)
-                .Select(r => new RoleResponseDTO
-                {
-                    Id = r.Id,
-                    Name = r.Name,
-                    Description = r.Description,
-                    Permissions = r.RolePermissions
-                        .Select(rp => new PermissionItemDTO
-                        {
-                            Id = rp.Permission.Id,
-                            Name = rp.Permission.Name
-                        }).ToList(),
-                    CreatedAt = r.CreatedAt,
-                    UpdatedAt = r.UpdatedAt
-                })
-                .ToListAsync();
+            var roles = await _repo.GetAllWithPermissionsAsync();
+
+            return roles.Select(MapToDTO).ToList();
         }
 
+        // ================= GET BY ID =================
         public async Task<RoleResponseDTO> GetByIdAsync(int id)
         {
-            var role = await _context.Roles
-                .Include(r => r.RolePermissions)
-                    .ThenInclude(rp => rp.Permission)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (role == null)
-                throw new NotFoundException("Role not found");
-
-            return new RoleResponseDTO
-            {
-                Id = role.Id,
-                Name = role.Name,
-                Description = role.Description,
-                Permissions = role.RolePermissions
-                    .Select(rp => new PermissionItemDTO
-                    {
-                        Id = rp.Permission.Id,
-                        Name = rp.Permission.Name
-                    }).ToList(),
-                CreatedAt = role.CreatedAt,
-                UpdatedAt = role.UpdatedAt
-            };
-        }
-
-        public async Task<RolePermissionResponseDTO> AddPermissionsAsync(int roleId, List<int> permissionIds)
-        {
-            if (permissionIds == null || !permissionIds.Any())
-                throw new BadRequestException("PermissionIds is empty");
-
-            var role = await _context.Roles.FindAsync(roleId)
+            var role = await _repo.GetByIdWithPermissionsAsync(id)
                 ?? throw new NotFoundException("Role not found");
 
-            if (role.Name != RoleType.STAFF && role.Name != RoleType.CUSTOMER)
-                throw new BadRequestException("Only STAFF and CUSTOMER can be modified");
+            return MapToDTO(role);
+        }
 
-            // lấy permission hợp lệ + chưa tồn tại trong role luôn (1 query logic)
-            var toAdd = await _context.Permissions
-                .Where(p => permissionIds.Contains(p.Id))
-                .Where(p => !_context.RolePermissions
-                    .Any(rp => rp.RoleId == roleId && rp.PermissionId == p.Id))
-                .Select(p => p.Id)
-                .ToListAsync();
+        // ================= ADD PERMISSIONS =================
+        public async Task<RolePermissionResponseDTO> AddPermissionsAsync(int roleId, List<int> permissionIds)
+        {
+            ValidateInput(permissionIds);
+
+            var role = await _repo.FindByIdAsync(roleId)
+                ?? throw new NotFoundException("Role not found");
+
+            ValidateRole(role);
+
+            // lọc permission hợp lệ trong DB
+            var validIds = await _repo.GetValidPermissionIdsAsync(permissionIds);
+            if (!validIds.Any())
+                throw new NotFoundException("No valid permissions found");
+
+            // lấy permission đã tồn tại trong role
+            var existingIds = await _repo.GetExistingPermissionIdsAsync(roleId, validIds);
+
+            // chỉ lấy permission mới chưa có
+            var toAdd = validIds.Except(existingIds).ToList();
 
             if (!toAdd.Any())
                 throw new BadRequestException("No new permissions to add");
 
-            _context.RolePermissions.AddRange(
+            // map sang entity để insert bảng many-to-many
+            _repo.AddRolePermissions(
                 toAdd.Select(id => new RolePermission
                 {
                     RoleId = roleId,
                     PermissionId = id
-                })
+                }).ToList()
             );
-            await _context.SaveChangesAsync();
+
+            await _repo.SaveChangesAsync();
             return new RolePermissionResponseDTO
             {
                 ProcessedIds = toAdd
             };
         }
 
+        // ================= REMOVE PERMISSIONS =================
         public async Task<RolePermissionResponseDTO> RemovePermissionsAsync(int roleId, List<int> permissionIds)
         {
-            if (permissionIds == null || !permissionIds.Any())
-                throw new BadRequestException("PermissionIds is empty");
+            ValidateInput(permissionIds);
 
-            var role = await _context.Roles.FindAsync(roleId)
+            var role = await _repo.FindByIdAsync(roleId)
                 ?? throw new NotFoundException("Role not found");
 
-            if (role.Name != RoleType.STAFF && role.Name != RoleType.CUSTOMER)
-                throw new BadRequestException("Only STAFF and CUSTOMER can be modified");
+            ValidateRole(role);
 
-            // Lấy danh sách permission hiện đang gán trong role và nằm trong danh sách cần xóa
-            var entities = await _context.RolePermissions
-                .Where(rp => rp.RoleId == roleId && permissionIds.Contains(rp.PermissionId))
-                .ToListAsync();
+            // Lấy các bản ghi RolePermission đang tồn tại trong DB
+            // (chỉ những cái vừa thuộc roleId + nằm trong danh sách cần xóa)
+            var entities = await _repo.GetRolePermissionsAsync(roleId, permissionIds);
 
+            // Nếu không có bản ghi nào khớp → không có gì để xóa
             if (!entities.Any())
-                throw new BadRequestException("None of the provided permissions exist in this role, so nothing was removed");
+                throw new BadRequestException("None of the provided permissions exist in this role");
 
-            _context.RolePermissions.RemoveRange(entities);
-
-            await _context.SaveChangesAsync();
+            // Xóa các mapping RolePermission khỏi bảng many-to-many
+            _repo.RemoveRolePermissions(entities);
+            await _repo.SaveChangesAsync();
 
             return new RolePermissionResponseDTO
             {
@@ -129,5 +103,39 @@ namespace Demo_Course_Management.Services
             };
         }
 
+        // ================= MAPPER =================
+        private static RoleResponseDTO MapToDTO(Role r)
+        {
+            return new RoleResponseDTO
+            {
+                Id = r.Id,
+                Name = r.Name,
+                Description = r.Description,
+
+                Permissions = r.RolePermissions
+                    .Select(rp => new PermissionItemDTO
+                    {
+                        Id = rp.Permission.Id,
+                        Name = rp.Permission.Name
+                    }).ToList(),
+
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt
+            };
+        }
+
+        // ================= VALIDATION =================
+        // check input rỗng/null
+        private static void ValidateInput(List<int> permissionIds)
+        {
+            if (permissionIds == null || !permissionIds.Any())
+                throw new BadRequestException("PermissionIds is empty");
+        }
+        // check quyền được phép sửa
+        private static void ValidateRole(Role role)
+        {
+            if (role.Name != RoleType.STAFF && role.Name != RoleType.CUSTOMER)
+                throw new BadRequestException("Only STAFF and CUSTOMER can be modified");
+        }
     }
 }

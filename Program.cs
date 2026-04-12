@@ -5,7 +5,8 @@ using Demo_Course_Management.Services;
 using Demo_Course_Management.Middleware;
 using System.Text.Json.Serialization;
 using System.Text.Json;
-using Demo_Course_Management.Data.Seeding; // namespace DbContext của bạn
+using Demo_Course_Management.Data.Seeding;
+using Demo_Course_Management.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,12 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 });
+
+//====Repository====
+builder.Services.AddScoped<CategoryRepository>();
+builder.Services.AddScoped<PermissionRepository>();
+builder.Services.AddScoped<ProductRepository>();
+builder.Services.AddScoped<RoleRepository>();
 //====Service====
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductService>();

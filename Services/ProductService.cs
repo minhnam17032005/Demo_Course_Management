@@ -3,37 +3,31 @@ using Demo_Course_Management.DTOs.request;
 using Demo_Course_Management.DTOs.response;
 using Demo_Course_Management.Middleware;
 using Demo_Course_Management.Models;
+using Demo_Course_Management.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Demo_Course_Management.Services
 {
     public class ProductService
     {
-        private readonly AppDbContext _context;
+        private readonly ProductRepository _repo;
 
-        public ProductService(AppDbContext context)
+        public ProductService(ProductRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
+
         public async Task<ProductResponseDTO> CreateAsync(ProductRequestDTO dto)
         {
-            var category = await _context.Categories
-                .Where(c => c.Id == dto.CategoryId)
-                .Select(c => new { c.Id, c.Name })
-                .FirstOrDefaultAsync();//data acess nên tách ra viết ở repo
+            // 1. check category tồn tại
+            var category = await _repo.GetCategoryByIdAsync(dto.CategoryId)
+                ?? throw new NotFoundException("Category not found");
 
-            if (category == null)
-            {
-                throw new NotFoundException("Category not found");
-            }
-
-            // check trùng 
-            if (await _context.Products
-                .AnyAsync(p => p.Name == dto.Name && p.CategoryId == dto.CategoryId))//data acess nên tách ra viết ở repo
-            {
+            // 2. check trùng product trong category
+            if (await _repo.ExistsInCategoryAsync(dto.Name, dto.CategoryId))
                 throw new BadRequestException("Product already exists in this category");
-            }
 
+            // 3. tạo product
             var product = new Product
             {
                 Name = dto.Name,
@@ -42,48 +36,22 @@ namespace Demo_Course_Management.Services
                 CategoryId = dto.CategoryId
             };
 
-            _context.Products.Add(product);//data acess nên tách ra viết ở repo
-            await _context.SaveChangesAsync();
+            await _repo.AddAsync(product);
+            await _repo.SaveChangesAsync();
 
-            return new ProductResponseDTO
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Price = product.Price,
-                Stock = product.Stock,
-                CategoryId = product.CategoryId,
-                CategoryName = category.Name,
-                CreatedAt = product.CreatedAt,
-                UpdatedAt = product.UpdatedAt
-            };
+            return MapToDTO(product, category);
         }
 
         public async Task<ProductResponseDTO> UpdateAsync(int id, ProductRequestDTO dto)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                throw new NotFoundException("Product not found");
-            }
+            var product = await _repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Product not found");
 
-            var category = await _context.Categories
-                .Where(c => c.Id == dto.CategoryId)
-                .Select(c => new { c.Id, c.Name })
-                .FirstOrDefaultAsync();
+            var category = await _repo.GetCategoryByIdAsync(dto.CategoryId)
+                ?? throw new NotFoundException("Category not found");
 
-            if (category == null)
-            {
-                throw new NotFoundException("Category not found");
-            }
-
-            // check trùng
-            if (await _context.Products
-                .AnyAsync(p => p.Id != id
-                            && p.CategoryId == dto.CategoryId
-                            && p.Name == dto.Name))
-            {
+            if (await _repo.ExistsInCategoryExcludeIdAsync(id, dto.Name, dto.CategoryId))
                 throw new BadRequestException("Product already exists in this category");
-            }
 
             product.Name = dto.Name;
             product.Price = dto.Price;
@@ -91,83 +59,70 @@ namespace Demo_Course_Management.Services
             product.CategoryId = dto.CategoryId;
             product.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            await _repo.SaveChangesAsync();
 
-            return new ProductResponseDTO
-            {
-                Id = product.Id,
-                Name = product.Name,
-                Price = product.Price,
-                Stock = product.Stock,
-                CategoryId = product.CategoryId,
-                CategoryName = category.Name,
-                CreatedAt = product.CreatedAt,
-                UpdatedAt = product.UpdatedAt
-            };
+            return MapToDTO(product, category);
         }
 
         public async Task<List<ProductResponseDTO>> GetAllAsync()
         {
-            return await _context.Products
-                .Join(_context.Categories,
-                    p => p.CategoryId,
-                    c => c.Id,
-                    (p, c) => new ProductResponseDTO
-                    {
-                        Id = p.Id,
-                        Name = p.Name,
-                        Price = p.Price,
-                        Stock = p.Stock,
-                        CategoryId = p.CategoryId,
-                        CategoryName = c.Name,
-                        CreatedAt = p.CreatedAt,
-                        UpdatedAt = p.UpdatedAt
-                    })
-                .AsNoTracking()
-                .ToListAsync();
+            var products = await _repo.GetAllWithCategoryAsync();
+
+            return products.Select(MapToDTO).ToList();
         }
 
         public async Task<ProductResponseDTO> GetByIdAsync(int id)
         {
-            var product = await _context.Products
-                .Where(p => p.Id == id)
-                .Join(_context.Categories,
-                    p => p.CategoryId,
-                    c => c.Id,
-                    (p, c) => new ProductResponseDTO
-                    {
-                        Id = p.Id,
-                        Name = p.Name,
-                        Price = p.Price,
-                        Stock = p.Stock,
-                        CategoryId = p.CategoryId,
-                        CategoryName = c.Name,
-                        CreatedAt = p.CreatedAt,
-                        UpdatedAt = p.UpdatedAt
-                    })
-                .FirstOrDefaultAsync();
+            var product = await _repo.GetByIdWithCategoryAsync(id)
+                ?? throw new NotFoundException("Product not found");
 
-            if (product == null)
-            {
-                throw new NotFoundException("Product not found");
-            }
-
-            return product;
+            return MapToDTO(product);
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var product = await _context.Products.FindAsync(id);
+            var product = await _repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Product not found");
 
-            if (product == null)
-            {
-                throw new NotFoundException("Product not found");
-            }
-
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
+            _repo.Remove(product);
+            await _repo.SaveChangesAsync();
 
             return true;
+        }
+
+        //MAPTODTO RIÊNG
+        private static ProductResponseDTO MapToDTO(Product p)
+        {
+            return new ProductResponseDTO
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Price = p.Price,
+                Stock = p.Stock,
+                CategoryId = p.CategoryId,
+                //Lấy từ navigation property (p.Category)
+                //Cần Include(p => p.Category) nếu không sẽ bị null
+                CategoryName = p.Category?.Name,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            };
+        }
+
+        // overload cho create/update (có category riêng)
+        private static ProductResponseDTO MapToDTO(Product p, Category c)
+        {
+            return new ProductResponseDTO
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Price = p.Price,
+                Stock = p.Stock,
+                CategoryId = p.CategoryId,
+                //Lấy trực tiếp từ parameter
+                CategoryName = c.Name,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            };
         }
     }
 }

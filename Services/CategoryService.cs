@@ -3,124 +3,103 @@ using Demo_Course_Management.DTOs.request;
 using Demo_Course_Management.DTOs.response;
 using Demo_Course_Management.Middleware;
 using Demo_Course_Management.Models;
+using Demo_Course_Management.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace Demo_Course_Management.Services
 {
     public class CategoryService
     {
-        private readonly AppDbContext _context;
+        private readonly CategoryRepository _repo;
 
-        public CategoryService(AppDbContext context)
+        public CategoryService(CategoryRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
+
         public async Task<CategoryResponseDTO> CreateAsync(CategoryRequestDTO dto)
         {
-            // check trùng name
-            if (await _context.Categories.AnyAsync(x => x.Name == dto.Name))
-            {
+            // 1. check trùng name
+            if (await _repo.ExistsByNameAsync(dto.Name))
                 throw new BadRequestException("Category name already exists");
-            }
 
+            // 2. tạo entity
             var category = new Category
             {
                 Name = dto.Name,
                 Description = dto.Description
             };
 
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
+            // 3. lưu DB
+            await _repo.AddAsync(category);
+            await _repo.SaveChangesAsync();
 
-            return new CategoryResponseDTO
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
+            // 4. trả về DTO
+            return MapToDTO(category);
         }
 
         public async Task<CategoryResponseDTO> UpdateAsync(int id, CategoryRequestDTO dto)
         {
-            // 1. Tìm category
-            var category = await _context.Categories.FindAsync(id);
-            if (category == null)
-            {
-                throw new NotFoundException("Category not found");
-            }
+            // 1. tìm category
+            var category = await _repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Category not found");
 
-            // 2. Check trùng name (trừ chính nó)
-            if (await _context.Categories
-                .AnyAsync(x => x.Name == dto.Name && x.Id != id))
-            {
+            // 2. check trùng name (trừ chính nó)
+            if (await _repo.ExistsByNameExcludeIdAsync(dto.Name, id))
                 throw new BadRequestException("Category name already exists");
-            }
 
+            // 3. update dữ liệu
             category.Name = dto.Name;
             category.Description = dto.Description;
             category.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
-            return new CategoryResponseDTO
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
+            // 4. lưu DB
+            _repo.Update(category);
+            await _repo.SaveChangesAsync();
+
+            return MapToDTO(category);
         }
+
         public async Task<List<CategoryResponseDTO>> GetAllAsync()
         {
-            var categories = await _context.Categories.ToListAsync();
+            var categories = await _repo.GetAllAsync();
 
-            return categories.Select(c => new CategoryResponseDTO
+            return categories
+                .Select(MapToDTO)
+                .ToList();
+        }
+
+        public async Task<CategoryResponseDTO> GetByIdAsync(int id)
+        {
+            var category = await _repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Category not found");
+
+            return MapToDTO(category);
+        }
+
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var category = await _repo.GetByIdAsync(id)
+                ?? throw new NotFoundException("Category not found");
+
+            _repo.Remove(category);
+            await _repo.SaveChangesAsync();
+
+            return true;
+        }
+
+        // helper mapping
+        private static CategoryResponseDTO MapToDTO(Category c)
+        {
+            return new CategoryResponseDTO
             {
                 Id = c.Id,
                 Name = c.Name,
                 Description = c.Description,
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
-            }).ToList();
-        }
-
-        public async Task<CategoryResponseDTO> GetByIdAsync(int id)
-        {
-            var category = await _context.Categories.FindAsync(id);
-
-            if (category == null)
-            {
-                throw new NotFoundException("Category not found");
-            }   
-
-            return new CategoryResponseDTO
-            {
-                Id = category.Id,
-                Name = category.Name,
-                Description = category.Description,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
             };
         }
-
-        public async Task<bool> DeleteAsync(int id)
-        {
-            var category = await _context.Categories.FindAsync(id);
-
-            if (category == null)
-            {
-                throw new NotFoundException("Category not found");
-            }
-
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
-
-            return true;
-        }
-
-
 
 
     }
