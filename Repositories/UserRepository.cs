@@ -38,18 +38,19 @@ namespace Demo_Course_Management.Repositories
             return await _context.Users
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
-
         public async Task<List<User>> GetAllAsync()
         {
             return await _context.Users
-                .Include(x => x.Role)
+                .Include(x => x.UserRoles)
+                    .ThenInclude(x => x.Role)
                 .ToListAsync();
         }
 
-        public async Task<User?> GetByIdWithRoleAsync(int id)
+        public async Task<User?> GetByIdWithRolesAsync(int id)
         {
             return await _context.Users
-                .Include(x => x.Role)
+                .Include(x => x.UserRoles)
+                .ThenInclude(x => x.Role)
                 .FirstOrDefaultAsync(x => x.Id == id);
         }
 
@@ -57,6 +58,24 @@ namespace Demo_Course_Management.Repositories
         {
             _context.Users.Remove(user);
         }
+        // lấy user + roles để xử lý đăng nhập
+        public async Task<User?> GetByUsernameWithRolesAsync(string username)
+        {
+            return await _context.Users
+                .Include(x => x.UserRoles)
+                    .ThenInclude(x => x.Role)
+                .FirstOrDefaultAsync(x => x.Username == username);
+        }
+
+        // lấy user + roles từ refresh token để cấp access token mới
+        public async Task<User?> GetByRefreshTokenAsync(string refreshToken)
+        {
+            return await _context.Users
+                .Include(x => x.UserRoles)
+                    .ThenInclude(x => x.Role)
+                .FirstOrDefaultAsync(x => x.RefreshToken == refreshToken);
+        }
+
 
     }
 }

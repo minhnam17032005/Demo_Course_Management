@@ -2,10 +2,10 @@
 
 namespace Demo_Course_Management.DTOs.request
 {
-    public class CreateOrderReqDTO
+    public class ChangeRolesReqDTO
     {
-
         [Required]
-        public List<CreateOrderItemDTO> Items { get; set; } = new();
+        [MinLength(1)]
+        public List<int> RoleIds { get; set; } = new();
     }
 }

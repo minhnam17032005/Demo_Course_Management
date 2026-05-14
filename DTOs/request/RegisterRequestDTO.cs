@@ -2,7 +2,7 @@
 
 namespace Demo_Course_Management.DTOs.request
 {
-    public class CreateUserReqDTO
+    public class RegisterRequestDTO
     {
         [Required]
         [MaxLength(50)]
@@ -20,10 +20,5 @@ namespace Demo_Course_Management.DTOs.request
         [EmailAddress]
         [MaxLength(100)]
         public string Email { get; set; } = null!;
-
-        [Required]
-        [MinLength(1)]
-        public List<int> RoleIds { get; set; } = new();
-
     }
 }

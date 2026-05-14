@@ -1,5 +1,6 @@
 ﻿using Demo_Course_Management.Data;
 using Demo_Course_Management.Models;
+using Demo_Course_Management.Models.Enum;
 using Microsoft.EntityFrameworkCore;
 
 namespace Demo_Course_Management.Repositories
@@ -33,13 +34,21 @@ namespace Demo_Course_Management.Repositories
             return await _context.Roles.FindAsync(id);
         }
 
+        public async Task<Role?> GetByNameAsync(RoleType roleType)
+        {
+            return await _context.Roles
+                .FirstOrDefaultAsync(x => x.Name == roleType);
+        }
+
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();
         }
-        public async Task<Role?> GetRoleById(int roleId)
+        public async Task<List<Role>> GetRolesByIdsAsync(List<int> roleIds)
         {
-            return await _context.Roles.FirstOrDefaultAsync(x => x.Id == roleId);
+            return await _context.Roles
+                .Where(x => roleIds.Contains(x.Id))
+                .ToListAsync();
         }
     }
 }

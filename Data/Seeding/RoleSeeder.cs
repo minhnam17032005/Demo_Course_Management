@@ -8,28 +8,22 @@ namespace Demo_Course_Management.Data.Seeding
     {
         public static async Task SeedAsync(AppDbContext context)
         {
-            //lấy tất cả role đã có
-            var existingRoleTypes = await context.Roles
-                .Select(r => r.Name)
-                .ToListAsync();
-
             var rolesToSeed = new List<Role>
             {
-                new Role { Name = RoleType.ADMIN, Description = "System Admin" },
-                new Role { Name = RoleType.STAFF, Description = "Staff" },
-                new Role { Name = RoleType.CUSTOMER, Description = "Customer" }
+                new() { Name = RoleType.ADMIN, Description = "System Admin" },
+                new() { Name = RoleType.MANAGER, Description = "Business Manager" },
+                new() { Name = RoleType.STAFF, Description = "Staff" },
+                new() { Name = RoleType.CUSTOMER, Description = "Customer" }
             };
 
-            //lọc những role chưa có
-            var toAdd = rolesToSeed
-                .Where(r => !existingRoleTypes.Contains(r.Name))
-                .ToList();
-
-            if (toAdd.Any())
+            foreach (var role in rolesToSeed)
             {
-                context.Roles.AddRange(toAdd);
-                await context.SaveChangesAsync();
+                var exists = await context.Roles.AnyAsync(x => x.Name == role.Name);
+                if (!exists)
+                    await context.Roles.AddAsync(role);
             }
+
+            await context.SaveChangesAsync();
         }
     }
 }

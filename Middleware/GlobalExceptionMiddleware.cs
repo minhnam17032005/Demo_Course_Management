@@ -33,6 +33,7 @@
 
             switch (ex)
             {
+                //khi thiếu dữ liệu 
                 case BadRequestException badRequestEx:
 
                     statusCode = StatusCodes.Status400BadRequest;
@@ -57,6 +58,7 @@
                         message = ex.Message
                     };
                     break;
+                    //khi trùng ,xung đột dữ liệu add hay tìm kiếm 
                 case ConflictException:
 
                     statusCode = StatusCodes.Status409Conflict;
@@ -67,16 +69,35 @@
                         message = ex.Message
                     };
                     break;
+                case UnauthorizedException://xác thực 
+                    statusCode = StatusCodes.Status401Unauthorized;
 
+                    response = new
+                    {
+                        status = statusCode,
+                        message = ex.Message
+                    };
+                    break;
+                case ForbiddenException://phân quyền 
+                    statusCode = StatusCodes.Status403Forbidden;
+
+                    response = new
+                    {
+                        status = statusCode,
+                        message = ex.Message
+                    };
+                    break;
+
+                //tạm thời 500 để lấy lỗi chính xác 
                 default:
-
                     statusCode = StatusCodes.Status500InternalServerError;
 
                     response = new
                     {
                         status = statusCode,
-                        message = "Lỗi hệ thống."
+                        message = ex.Message
                     };
+
                     break;
             }
 

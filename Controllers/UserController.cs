@@ -1,4 +1,5 @@
-﻿using Demo_Course_Management.DTOs.request;
+﻿using Azure;
+using Demo_Course_Management.DTOs.request;
 using Demo_Course_Management.DTOs.response;
 using Demo_Course_Management.Models;
 using Demo_Course_Management.Services;
@@ -8,7 +9,8 @@ namespace Demo_Course_Management.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    public class UserController : Controller
+    [Produces("application/json")]
+    public class UserController : ControllerBase
     {
         private readonly UserService _service;
 
@@ -27,12 +29,39 @@ namespace Demo_Course_Management.Controllers
                 result
             );
         }
-
-        [HttpPut("{id}")]
-        public async Task<ActionResult<UserResponseDTO>> Update(int id, UpdateUserReqDTO dto)
+        
+        [HttpPut("{id}/profile")]
+        public async Task<ActionResult<UserResponseDTO>> ChangeProfile(int id, ChangeProfileReqDTO dto)
         {
-            var result = await _service.UpdateAsync(id, dto);
+            var result = await _service.ChangeProfileAsync(id, dto);
             return Ok(result);
+        }
+
+        [HttpPost("{id}/roles")]
+        public async Task<ActionResult<UserResponseDTO>> AddRoles(
+            int id,
+            [FromBody] ChangeRolesReqDTO dto)
+        {
+            var result = await _service.AddRolesAsync(id, dto.RoleIds);
+
+            return Ok(new
+            {
+                message = "Thêm vai trò cho người dùng thành công.",
+                data = result
+            });
+        }
+
+        [HttpDelete("{id}/roles")]
+        public async Task<ActionResult<UserResponseDTO>> RemoveRoles(
+            int id,
+            [FromBody] ChangeRolesReqDTO dto)
+        {
+            var result = await _service.RemoveRolesAsync(id, dto.RoleIds);
+
+            return Ok(new {
+                message = "Xóa vai trò khỏi người dùng thành công.",
+                data = result
+            });
         }
 
         [HttpGet]
@@ -49,18 +78,18 @@ namespace Demo_Course_Management.Controllers
             return Ok(result);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        [HttpPatch("{id}/lock")]
+        public async Task<ActionResult<StatusResponseDTO>> Lock(int id)
         {
-            await _service.DeleteAsync(id);
-            return NoContent(); // 204 chuẩn REST
+            var response = await _service.LockAsync(id);
+            return Ok(response);
         }
 
-        [HttpPatch("{id}/restore")]
-        public async Task<IActionResult> Restore(int id)
+        [HttpPatch("{id}/unlock")]
+        public async Task<ActionResult<StatusResponseDTO>> Unlock(int id)
         {
-            await _service.RestoreAsync(id);
-            return Ok(new { message = "Khôi phục tài khoản thành công." });
+            var response = await _service.UnlockAsync(id);
+            return Ok(response);
         }
     }
 }

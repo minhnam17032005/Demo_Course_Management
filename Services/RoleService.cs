@@ -45,27 +45,35 @@ namespace Demo_Course_Management.Services
         public async Task<RolePermissionResponseDTO> AddPermissionsAsync(int roleId, List<int> permissionIds)
         {
             ValidateInput(permissionIds);
-
             var role = await _repoRole.FindByIdAsync(roleId)
                 ?? throw new NotFoundException("Role not found");
-
+            
             ValidateRole(role);
-
-            // lọc permission hợp lệ trong DB
+            //Lấy permission hợp lệ trong DB
             var validIds = await _repoPermission.GetValidPermissionIdsAsync(permissionIds);
-            if (!validIds.Any())
-                throw new NotFoundException("No valid permissions found");
 
-            // lấy permission đã tồn tại trong role
+            //Lấy permission đã tồn tại trong role
             var existingIds = await _repoPermission.GetExistingPermissionIdsAsync(roleId, validIds);
 
-            // chỉ lấy permission mới chưa có
+            //Xác định permission cần thêm
             var toAdd = validIds.Except(existingIds).ToList();
 
-            if (!toAdd.Any())
-                throw new BadRequestException("No new permissions to add");
+            //Xác định permission fail (không tồn tại hoặc đã có)
+            var failedIds = permissionIds.Except(validIds).Union(existingIds).Distinct().ToList();
 
-            // map sang entity để insert bảng many-to-many
+            //Nếu không có cái mới nào
+            if (!toAdd.Any())
+            {
+                return new RolePermissionResponseDTO
+                {
+                    RoleId = roleId,
+                    ProcessedIds = new List<int>(),
+                    FailedIds = permissionIds,
+                    Message = "No new permissions to add"
+                };
+            }
+
+            //Insert mới
             _repoRolePermission.AddRolePermissions(
                 toAdd.Select(id => new RolePermission
                 {
@@ -77,7 +85,10 @@ namespace Demo_Course_Management.Services
             await _repoRole.SaveChangesAsync();
             return new RolePermissionResponseDTO
             {
-                ProcessedIds = toAdd
+                RoleId = roleId,
+                ProcessedIds = toAdd,
+                FailedIds = failedIds,
+                Message = "Permissions added successfully"
             };
         }
 
@@ -85,27 +96,41 @@ namespace Demo_Course_Management.Services
         public async Task<RolePermissionResponseDTO> RemovePermissionsAsync(int roleId, List<int> permissionIds)
         {
             ValidateInput(permissionIds);
-
             var role = await _repoRole.FindByIdAsync(roleId)
                 ?? throw new NotFoundException("Role not found");
 
             ValidateRole(role);
-
-            // Lấy các bản ghi RolePermission đang tồn tại trong DB
-            // (chỉ những cái vừa thuộc roleId + nằm trong danh sách cần xóa)
+            //Lấy các mapping tồn tại trong DB
             var entities = await _repoRolePermission.GetRolePermissionsAsync(roleId, permissionIds);
 
-            // Nếu không có bản ghi nào khớp → không có gì để xóa
+            //Nếu không có cái nào tồn tạ
             if (!entities.Any())
-                throw new BadRequestException("None of the provided permissions exist in this role");
+            {
+                return new RolePermissionResponseDTO
+                {
+                    RoleId = roleId,
+                    ProcessedIds = new List<int>(),
+                    FailedIds = permissionIds,
+                    Message = "No permissions found in this role"
+                };
+            }
 
-            // Xóa các mapping RolePermission khỏi bảng many-to-many
+            //danh sách permission thực sự sẽ bị xóa
+            var removedIds = entities.Select(x => x.PermissionId).ToList();
+
+            //danh sách fail (không tồn tại trong role)
+            var failedIds = permissionIds.Except(removedIds).ToList();
+
+            //remove mapping
             _repoRolePermission.RemoveRolePermissions(entities);
-            await _repoRole.SaveChangesAsync();
 
+            await _repoRole.SaveChangesAsync();
             return new RolePermissionResponseDTO
             {
-                ProcessedIds = entities.Select(x => x.PermissionId).ToList()
+                RoleId = roleId,
+                ProcessedIds = removedIds,
+                FailedIds = failedIds,
+                Message = "Permissions removed successfully"
             };
         }
 

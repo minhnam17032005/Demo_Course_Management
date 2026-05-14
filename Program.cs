@@ -7,18 +7,46 @@ using System.Text.Json.Serialization;
 using System.Text.Json;
 using Demo_Course_Management.Data.Seeding;
 using Demo_Course_Management.Repositories;
+using Demo_Course_Management.Jwt;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===== 1️⃣ Thêm DbContext để EF Core biết kết nối DB bên appsettings.Development.json=====
+// ===== Thêm DbContext để EF Core biết kết nối DB bên appsettings.Development.json=====
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MyDatabase")));
 
-// ===== 2️⃣ Thêm controller support =====
-builder.Services.AddControllers().AddJsonOptions(options =>
+//===== bộ não xử lý JWT → biến token thành HttpContext.User =====
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+.AddJwtBearer(options =>
 {
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+        ),
+
+        RoleClaimType = ClaimTypes.Role,
+        NameClaimType = "username"
+    };
+
+    options.MapInboundClaims = false; 
+});
+// ===== Thêm controller support =====
+builder.Services.AddControllers().AddJsonOptions(options =>{
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 });
+
+builder.Services.AddHttpContextAccessor();
 
 //====Repository====
 builder.Services.AddScoped<CategoryRepository>();
@@ -27,23 +55,60 @@ builder.Services.AddScoped<ProductRepository>();
 builder.Services.AddScoped<RoleRepository>();
 builder.Services.AddScoped<RolePermissionRepository>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<UserRoleRepository>();
 builder.Services.AddScoped<OrderRepository>();
 builder.Services.AddScoped<OrderItemRepository>();
 //====Service====
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<PermissionService>();
+builder.Services.AddScoped<CurrentUserService>();
 builder.Services.AddScoped<RoleService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<JwtService>();
+builder.Services.AddSingleton<JwtBlacklistService>();
+
+//=== dùng reddis để lưu blacklist accesstoken 
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(
+        builder.Configuration["Redis:ConnectionString"]!
+    )
+);
 
 
-// ===== 3️⃣ Thêm Swagger/OpenAPI để test API =====
+// ===== Thêm Swagger/OpenAPI để test API =====
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Nhập token dạng: Bearer {your_token}"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 var app = builder.Build();
-
 //==== DbSeeder run thông qua RunSeeder ở appsettings.Development.json====
 var runSeeder = builder.Configuration.GetValue<bool>("RunSeeder");
 
@@ -54,7 +119,7 @@ if (runSeeder)
     await DbSeeder.SeedAsync(context);
 }
 
-// ===== 4️⃣ Middleware =====
+// ===== Middleware =====
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -78,7 +143,11 @@ app.UseStatusCodePages(async context =>
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseHttpsRedirection();
 
-app.UseAuthorization(); // nếu muốn dùng [Authorize], bỏ nếu chưa cần
+app.UseAuthentication();
+app.UseAuthorization(); // nếu muốn dùng [Authorize]
+//app.UseMiddleware<PermissionMiddleware>();
+//app.UseMiddleware<JwtBlacklistMiddleware>();
+
 
 app.MapControllers(); // map tất cả controller
 

@@ -5,9 +5,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Demo_Course_Management.Controllers
 {
-        [ApiController]
-        [Route("api/roles")]
-        public class RoleController : ControllerBase
+    [ApiController]
+    [Route("api/roles")]
+    [Produces("application/json")]
+    public class RoleController : ControllerBase
         {
             private readonly RoleService _service;
 

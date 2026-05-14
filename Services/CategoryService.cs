@@ -55,7 +55,7 @@ namespace Demo_Course_Management.Services
             // 3. update dữ liệu
             category.Name = dto.Name;
             category.Description = dto.Description;
-            category.UpdatedAt = DateTime.Now;
+            category.UpdatedAt = DateTime.UtcNow;
 
             // 4. lưu DB
             _repoCategory.Update(category);
@@ -83,7 +83,7 @@ namespace Demo_Course_Management.Services
             return MapToDTO(category);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<StatusResponseDTO> DeleteAsync(int id)
         {
             var category = await _repoCategory.GetByIdAsync(id)
                 ?? throw new NotFoundException("Category not found");
@@ -95,14 +95,18 @@ namespace Demo_Course_Management.Services
                     "Danh mục đang chứa sản phẩm hoạt động nên không thể ngừng hoạt động.");
 
             category.IsActive = false;
-            category.UpdatedAt = DateTime.Now;
+            category.UpdatedAt = DateTime.UtcNow;
 
             await _repoCategory.SaveChangesAsync();
 
-            return true;
+            return new StatusResponseDTO
+            {
+                IsActive = category.IsActive,
+                Message = "Category deactivated successfully"
+            };
         }
 
-        public async Task<bool> RestoreAsync(int id)
+        public async Task<StatusResponseDTO> RestoreAsync(int id)
         {
             var category = await _repoCategory.GetByIdAsync(id)
                 ?? throw new NotFoundException("Category not found");
@@ -111,11 +115,15 @@ namespace Demo_Course_Management.Services
                 throw new BadRequestException("Danh mục đang hoạt động.");
 
             category.IsActive = true;
-            category.UpdatedAt = DateTime.Now;
+            category.UpdatedAt = DateTime.UtcNow;
 
             await _repoCategory.SaveChangesAsync();
 
-            return true;
+            return new StatusResponseDTO
+            {
+                IsActive = category.IsActive,
+                Message = "Category restored successfully"
+            };
         }
 
         // helper mapping

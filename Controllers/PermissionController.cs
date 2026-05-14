@@ -7,6 +7,7 @@ namespace Demo_Course_Management.Controllers
 {
     [ApiController]
     [Route("api/permissions")]
+    [Produces("application/json")]
     public class PermissionController : ControllerBase
     {
         private readonly PermissionService _service;

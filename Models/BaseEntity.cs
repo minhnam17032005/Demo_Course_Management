@@ -10,7 +10,7 @@ namespace Demo_Course_Management.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]//tự tăng 
         public int Id { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; }
     }

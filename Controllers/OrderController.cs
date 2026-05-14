@@ -1,13 +1,15 @@
 ﻿using Demo_Course_Management.DTOs.request;
 using Demo_Course_Management.DTOs.response;
+using Demo_Course_Management.Models;
 using Demo_Course_Management.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Demo_Course_Management.Controllers
 {
-        [ApiController]
-        [Route("api/orders")]
-        public class OrderController : Controller
+    [ApiController]
+    [Route("api/orders")]
+    [Produces("application/json")]
+    public class OrderController : ControllerBase
         {
             private readonly OrderService _service;
 
@@ -19,8 +21,12 @@ namespace Demo_Course_Management.Controllers
         [HttpPost]
         public async Task<ActionResult<OrderResponseDTO>> Create(CreateOrderReqDTO dto)
         {
-             var result = await _service.CreateAsync(dto);
-             return Ok(result);
+            var result = await _service.CreateAsync(dto);
+            return CreatedAtAction(
+               nameof(GetById),       // action GetById trong controller
+               new { id = result.Id }, // route values
+               result                // body trả về
+           );
         }
 
         [HttpGet]
@@ -37,7 +43,7 @@ namespace Demo_Course_Management.Controllers
             return Ok(result);
         }
 
-        [HttpPut("{id}/status")]
+        [HttpPatch("{id}/status")]
         public async Task<ActionResult<OrderResponseDTO>> UpdateStatus(int id, UpdateOrderStatusReqDTO dto)
         {
             var result = await _service.UpdateStatusAsync(id, dto);

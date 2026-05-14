@@ -1,4 +1,5 @@
-﻿using Demo_Course_Management.Models;
+﻿using Demo_Course_Management.Middleware;
+using Demo_Course_Management.Models;
 using Demo_Course_Management.Models.Enum;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,27 +9,25 @@ namespace Demo_Course_Management.Data.Seeding
     {
         public static async Task SeedAsync(AppDbContext context)
         {
-            var adminRole = await context.Roles
-                .FirstOrDefaultAsync(r => r.Name == RoleType.ADMIN);
+            var adminRole = await context.Roles.FirstAsync(x => x.Name == RoleType.ADMIN);
 
-            if (adminRole == null) return;
+            var exists = await context.Users.AnyAsync(x => x.Username == "nam");
+            if (exists) return;
 
-            var adminExists = await context.Users
-                .AnyAsync(u => u.RoleId == adminRole.Id);
-
-            if (adminExists) return;
-
-            var adminUser = new User
+            var user = new User
             {
                 Username = "Nam",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456"),
                 FullName = "Nguyen Minh Nam",
                 Email = "namcoder2005@gmail.com",
-                RoleId = adminRole.Id,
-                CreatedAt = DateTime.Now
+                IsActive = true,
+                UserRoles = new List<UserRole>
+        {
+            new UserRole { RoleId = adminRole.Id }
+        }
             };
 
-            context.Users.Add(adminUser);
+            await context.Users.AddAsync(user);
             await context.SaveChangesAsync();
         }
     }

@@ -94,7 +94,7 @@ namespace Demo_Course_Management.Services
                 throw new BadRequestException("Stock must be >= 0");
 
             product.Stock = dto.Stock;
-            product.UpdatedAt = DateTime.Now;
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _repoProduct.SaveAsync();
 
@@ -116,12 +116,12 @@ namespace Demo_Course_Management.Services
             return MapToDTO(product);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<StatusResponseDTO> DeleteAsync(int id)
         {
             var product = await _repoProduct.GetByIdAsync(id)
                 ?? throw new NotFoundException("Product not found");
 
-            // đã ngừng hoạt động rồi
+            // đã inactive rồi
             if (!product.IsActive)
                 throw new BadRequestException("Sản phẩm đã ngừng hoạt động.");
 
@@ -132,25 +132,26 @@ namespace Demo_Course_Management.Services
                 throw new ConflictException(
                     "Sản phẩm đang nằm trong đơn hàng chờ xử lý nên không thể ngừng hoạt động.");
 
-            // soft delete
             product.IsActive = false;
-            product.UpdatedAt = DateTime.Now;
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _repoProduct.SaveAsync();
 
-            return true;
+            return new StatusResponseDTO
+            {
+                IsActive = product.IsActive,
+                Message = "Product deactivated successfully"
+            };
         }
 
-        public async Task<bool> RestoreAsync(int id)
+        public async Task<StatusResponseDTO> RestoreAsync(int id)
         {
             var product = await _repoProduct.GetByIdAsync(id)
                 ?? throw new NotFoundException("Product not found");
 
-            // đã active rồi
             if (product.IsActive)
                 throw new BadRequestException("Sản phẩm đang hoạt động.");
 
-            // category bị khóa thì không restore được
             var category = await _repoProduct.GetCategoryByIdAsync(product.CategoryId)
                 ?? throw new NotFoundException("Category not found");
 
@@ -159,11 +160,15 @@ namespace Demo_Course_Management.Services
                     "Danh mục đang ngừng hoạt động nên không thể khôi phục sản phẩm.");
 
             product.IsActive = true;
-            product.UpdatedAt = DateTime.Now;
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _repoProduct.SaveAsync();
 
-            return true;
+            return new StatusResponseDTO
+            {
+                IsActive = product.IsActive,
+                Message = "Product restored successfully"
+            };
         }
 
         //MAPTODTO RIÊNG

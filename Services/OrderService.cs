@@ -1,6 +1,7 @@
 ﻿using Demo_Course_Management.DTOs;
 using Demo_Course_Management.DTOs.request;
 using Demo_Course_Management.DTOs.response;
+using Demo_Course_Management.Jwt;
 using Demo_Course_Management.Middleware;
 using Demo_Course_Management.Models;
 using Demo_Course_Management.Models.Enum;
@@ -14,24 +15,36 @@ namespace Demo_Course_Management.Services
         private readonly OrderItemRepository _repoOrderItem;
         private readonly ProductRepository _repoProduct;
         private readonly UserRepository _repoUser;
+        private readonly CurrentUserService _currentUser;
 
+        private static readonly Dictionary<OrderStatus, HashSet<OrderStatus>> AllowedTransitions = new()
+            {
+                [OrderStatus.PENDING] = new HashSet<OrderStatus>{OrderStatus.CONFIRMED,OrderStatus.CANCELLED}
+                ,
 
+                [OrderStatus.CONFIRMED] = new HashSet<OrderStatus>{OrderStatus.SHIPPING,OrderStatus.CANCELLED}
+                ,
 
-        public OrderService(OrderRepository repoOrder, OrderItemRepository repoOrderItem, ProductRepository repoProduct, UserRepository repoUser)
+                [OrderStatus.SHIPPING] = new HashSet<OrderStatus>{OrderStatus.COMPLETED,OrderStatus.RETURNED}
+                ,
+
+                [OrderStatus.COMPLETED] = new HashSet<OrderStatus>(),
+                [OrderStatus.CANCELLED] = new HashSet<OrderStatus>(),   
+                [OrderStatus.RETURNED] = new HashSet<OrderStatus>(),
+            };
+
+        public OrderService(OrderRepository repoOrder, OrderItemRepository repoOrderItem, 
+            ProductRepository repoProduct, UserRepository repoUser, CurrentUserService currentUser)
         {
             _repoOrder = repoOrder;
             _repoOrderItem = repoOrderItem;
             _repoProduct = repoProduct;
             _repoUser = repoUser;
+            _currentUser = currentUser;
         }
 
         public async Task<OrderResponseDTO> CreateAsync(CreateOrderReqDTO dto)
         {
-            // 1. Check user tồn tại
-            var user = await _repoUser.GetByIdAsync(dto.UserId);
-            if (user == null)
-                throw new NotFoundException($"Không tìm thấy User ID = {dto.UserId}");
-
             // 2. Check có sản phẩm
             if (dto.Items == null || !dto.Items.Any())
                 throw new BadRequestException("Đơn hàng phải có ít nhất 1 sản phẩm.");
@@ -101,7 +114,7 @@ namespace Demo_Course_Management.Services
 
                 var order = new Order
                 {
-                    UserId = dto.UserId,
+                    UserId = _currentUser.UserId,//lấy từ HttpContext
                     Status = OrderStatus.PENDING,
                     TotalAmount = totalAmount
                 };
@@ -134,50 +147,46 @@ namespace Demo_Course_Management.Services
             }
         }
 
-        public async Task<OrderResponseDTO> UpdateStatusAsync(int id,UpdateOrderStatusReqDTO dto)
+        public async Task<OrderResponseDTO> UpdateStatusAsync(int id, UpdateOrderStatusReqDTO dto)
         {
-            var order = await _repoOrder.GetByIdAsync(id);
+            using var tran = await _repoOrder.BeginTransactionAsync();
 
-            if (order == null)
-                throw new NotFoundException("Không tìm thấy đơn hàng.");
-
-            // Chỉ cho phép đổi từ Pending
-            if (order.Status == OrderStatus.COMPLETED)
-                throw new BadRequestException(
-                    "Đơn hàng đã hoàn thành, không thể thay đổi trạng thái.");
-
-            if (order.Status == OrderStatus.CANCELLED)
-                throw new BadRequestException(
-                    "Đơn hàng đã hủy, không thể thay đổi trạng thái.");
-
-            // Chỉ cho Pending -> Completed hoặc Pending -> Cancelled
-            if (dto.Status != OrderStatus.COMPLETED &&
-                dto.Status != OrderStatus.CANCELLED)
+            try
             {
-                throw new BadRequestException(
-                    "Chỉ được chuyển sang Completed hoặc Cancelled.");
-            }
-            // Pending -> Cancelled => hoàn kho
-            if (dto.Status == OrderStatus.CANCELLED)
-            {
-                foreach (var item in order.OrderItems)
+                var order = await _repoOrder.GetByIdAsync(id);
+
+                if (order == null)
+                    throw new NotFoundException("Không tìm thấy đơn hàng.");
+
+                // 1. validate FSM
+                ValidateTransition(order.Status, dto.Status);
+
+                // 2. xử lý business theo status
+                if (dto.Status == OrderStatus.CANCELLED)
                 {
-                    var product = await _repoProduct.GetByIdAsync(item.ProductId);
-                    if (product != null)
-                        product.Stock += item.Quantity;
+                    await RestockAsync(order);
                 }
 
-                await _repoProduct.SaveAsync();
+                if (dto.Status == OrderStatus.RETURNED)
+                {
+                    await RestockAsync(order);
+                }
+
+                // 3. update order
+                order.Status = dto.Status;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _repoOrder.SaveAsync();
+
+                await tran.CommitAsync();
+
+                return MapToDTO(order);
             }
-            // Pending -> Completed
-            // Không cộng/trừ kho vì đã trừ từ lúc tạo đơn
-
-            order.Status = dto.Status;
-            order.UpdatedAt = DateTime.Now;
-
-            await _repoOrder.SaveAsync();
-
-            return MapToDTO(order);
+            catch
+            {
+                await tran.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<List<OrderResponseDTO>> GetAllAsync()
@@ -195,6 +204,48 @@ namespace Demo_Course_Management.Services
                 throw new NotFoundException("Không tìm thấy đơn hàng.");
 
             return MapToDTO(order);
+        }
+
+        //check trạng thái tiếp theo xem đã hợp lí 
+        private void ValidateTransition(OrderStatus current, OrderStatus next)
+        {
+            if (!AllowedTransitions.TryGetValue(current, out var allowed))
+                throw new BadRequestException("Trạng thái hiện tại không hợp lệ.");
+
+            if (!allowed.Contains(next))
+                throw new BadRequestException($"Không thể chuyển từ {current} sang {next}");
+        }
+        
+        //restock nếu như đơn hàng có trạng thái CANCELLED và RETURNED
+        private async Task RestockAsync(Order order)
+        {
+            var items = order.OrderItems;
+
+            if (items == null || !items.Any())
+                return;
+
+            var productIds = items
+                .Select(x => x.ProductId)
+                .Distinct()
+                .ToList();
+
+            // Query tất cả product liên quan 1 lần
+            var products = await _repoProduct.GetByIdsAsync(productIds);
+
+            // Convert sang Dictionary để lookup nhanh
+            var map = products.ToDictionary(x => x.Id);
+
+            // Duyệt từng item trong đơn hàng để hoàn kho
+            foreach (var item in items)
+            {
+                // Kiểm tra product có tồn tại trong map không
+                if (map.TryGetValue(item.ProductId, out var product))
+                {
+                    product.Stock += item.Quantity;
+                }
+            }
+
+            await _repoProduct.SaveAsync();
         }
 
         private OrderResponseDTO MapToDTO(Order order, List<OrderItemResponseDTO> items)

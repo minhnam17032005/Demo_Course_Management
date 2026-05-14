@@ -8,51 +8,61 @@ namespace Demo_Course_Management.Data.Seeding
     {
         public static async Task SeedAsync(AppDbContext context)
         {
-            //lấy permission đã có (key unique)
-            var existing = await context.Permissions
-                .Select(p => new { p.ApiPath, p.Method, p.Module })
-                .ToListAsync();
-
             var permissions = new List<Permission>
-        {
-             // Category
-            new Permission { Name = "CREATE_CATEGORY", Description = "Tạo danh mục", ApiPath = "/api/categories", Method = HttpMethodType.POST, Module = "Category" },
-            new Permission { Name = "GET_CATEGORIES", Description = "Lấy danh sách danh mục", ApiPath = "/api/categories", Method = HttpMethodType.GET, Module = "Category" },
-            new Permission { Name = "GET_CATEGORY_BY_ID", Description = "Lấy chi tiết danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.GET, Module = "Category" },
-            new Permission { Name = "UPDATE_CATEGORY", Description = "Cập nhật danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.PUT, Module = "Category" },
-            new Permission { Name = "DELETE_CATEGORY", Description = "Xóa danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.DELETE, Module = "Category" },
-
-            // Product
-            new Permission { Name = "CREATE_PRODUCT", Description = "Tạo sản phẩm", ApiPath = "/api/products", Method = HttpMethodType.POST, Module = "Product" },
-            new Permission { Name = "GET_PRODUCTS", Description = "Lấy danh sách sản phẩm", ApiPath = "/api/products", Method = HttpMethodType.GET, Module = "Product" },
-            new Permission { Name = "GET_PRODUCT_BY_ID", Description = "Lấy chi tiết sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.GET, Module = "Product" },
-            new Permission { Name = "UPDATE_PRODUCT", Description = "Cập nhật sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.PUT, Module = "Product" },
-            new Permission { Name = "DELETE_PRODUCT", Description = "Xóa sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.DELETE, Module = "Product" },
-
-            // Permission
-            new Permission { Name = "GET_PERMISSIONS", Description = "Lấy danh sách quyền", ApiPath = "/api/permissions", Method = HttpMethodType.GET, Module = "Permission" },
-            new Permission { Name = "GET_PERMISSION_BY_ID", Description = "Lấy chi tiết quyền", ApiPath = "/api/permissions/{id}", Method = HttpMethodType.GET, Module = "Permission" },
-
-            // Role
-            new Permission { Name = "GET_ROLES", Description = "Lấy danh sách vai trò", ApiPath = "/api/roles", Method = HttpMethodType.GET, Module = "Role" },
-            new Permission { Name = "GET_ROLE_BY_ID", Description = "Lấy chi tiết vai trò", ApiPath = "/api/roles/{id}", Method = HttpMethodType.GET, Module = "Role" },
-            new Permission { Name = "ADD_PERMISSION_TO_ROLE", Description = "Thêm quyền vào vai trò", ApiPath = "/api/roles/{id}/permissions", Method = HttpMethodType.POST, Module = "Role" },
-            new Permission { Name = "REMOVE_PERMISSION_FROM_ROLE", Description = "Xóa quyền khỏi vai trò", ApiPath = "/api/roles/{id}/permissions", Method = HttpMethodType.DELETE, Module = "Role" }
-        };
-
-            //lọc permission chưa tồn tại
-            var toAdd = permissions
-                .Where(p => !existing.Any(e =>
-                    e.ApiPath == p.ApiPath &&
-                    e.Method == p.Method &&
-                    e.Module == p.Module))
-                .ToList();
-
-            if (toAdd.Any())
             {
-                context.Permissions.AddRange(toAdd);
-                await context.SaveChangesAsync();
+                // CATEGORY
+                new() { Name = "CREATE_CATEGORY", Description = "Tạo danh mục", ApiPath = "/api/categories", Method = HttpMethodType.POST, Module = "CATEGORY" },
+                new() { Name = "GET_CATEGORIES", Description = "Danh sách danh mục", ApiPath = "/api/categories", Method = HttpMethodType.GET, Module = "CATEGORY" },
+                new() { Name = "GET_CATEGORY_DETAIL", Description = "Chi tiết danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.GET, Module = "CATEGORY" },
+                new() { Name = "UPDATE_CATEGORY", Description = "Cập nhật danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.PUT, Module = "CATEGORY" },
+                new() { Name = "DELETE_CATEGORY", Description = "Xóa danh mục", ApiPath = "/api/categories/{id}", Method = HttpMethodType.DELETE, Module = "CATEGORY" },
+                new() { Name = "RESTORE_CATEGORY", Description = "Khôi phục danh mục", ApiPath = "/api/categories/{id}/restore", Method = HttpMethodType.PATCH, Module = "CATEGORY" },
+
+                // PRODUCT
+                new() { Name = "CREATE_PRODUCT", Description = "Tạo sản phẩm", ApiPath = "/api/products", Method = HttpMethodType.POST, Module = "PRODUCT" },
+                new() { Name = "GET_PRODUCTS", Description = "Danh sách sản phẩm", ApiPath = "/api/products", Method = HttpMethodType.GET, Module = "PRODUCT" },
+                new() { Name = "GET_PRODUCT_DETAIL", Description = "Chi tiết sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.GET, Module = "PRODUCT" },
+                new() { Name = "UPDATE_PRODUCT", Description = "Cập nhật sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.PUT, Module = "PRODUCT" },
+                new() { Name = "DELETE_PRODUCT", Description = "Xóa sản phẩm", ApiPath = "/api/products/{id}", Method = HttpMethodType.DELETE, Module = "PRODUCT" },
+                new() { Name = "UPDATE_PRODUCT_STOCK", Description = "Cập nhật tồn kho", ApiPath = "/api/products/{id}/stock", Method = HttpMethodType.PATCH, Module = "PRODUCT" },
+                new() { Name = "RESTORE_PRODUCT", Description = "Khôi phục sản phẩm", ApiPath = "/api/products/{id}/restore", Method = HttpMethodType.PATCH, Module = "PRODUCT" },
+
+                // ORDER
+                new() { Name = "CREATE_ORDER", Description = "Tạo đơn hàng", ApiPath = "/api/orders", Method = HttpMethodType.POST, Module = "ORDER" },
+                new() { Name = "GET_ORDERS", Description = "Danh sách đơn hàng", ApiPath = "/api/orders", Method = HttpMethodType.GET, Module = "ORDER" },
+                new() { Name = "GET_ORDER_DETAIL", Description = "Chi tiết đơn hàng", ApiPath = "/api/orders/{id}", Method = HttpMethodType.GET, Module = "ORDER" },
+                new() { Name = "UPDATE_ORDER_STATUS", Description = "Cập nhật trạng thái đơn hàng", ApiPath = "/api/orders/{id}/status", Method = HttpMethodType.PATCH, Module = "ORDER" },
+
+                // USER
+                new() { Name = "CREATE_USER", Description = "Tạo user", ApiPath = "/api/users", Method = HttpMethodType.POST, Module = "USER" },
+                new() { Name = "GET_USERS", Description = "Danh sách user", ApiPath = "/api/users", Method = HttpMethodType.GET, Module = "USER" },
+                new() { Name = "GET_USER_DETAIL", Description = "Chi tiết user", ApiPath = "/api/users/{id}", Method = HttpMethodType.GET, Module = "USER" },
+                new() { Name = "UPDATE_USER_PROFILE", Description = "Cập nhật profile", ApiPath = "/api/users/{id}/profile", Method = HttpMethodType.PUT, Module = "USER" },
+                new() { Name = "ADD_USER_ROLES", Description = "Thêm role cho user", ApiPath = "/api/users/{id}/roles", Method = HttpMethodType.POST, Module = "USER" },
+                new() { Name = "REMOVE_USER_ROLES", Description = "Xóa role khỏi user", ApiPath = "/api/users/{id}/roles", Method = HttpMethodType.DELETE, Module = "USER" },
+                new() { Name = "LOCK_USER", Description = "Khóa tài khoản", ApiPath = "/api/users/{id}/lock", Method = HttpMethodType.PATCH, Module = "USER" },
+                new() { Name = "UNLOCK_USER", Description = "Mở khóa tài khoản", ApiPath = "/api/users/{id}/unlock", Method = HttpMethodType.PATCH, Module = "USER" },
+
+                // ROLE
+                new() { Name = "GET_ROLES", Description = "Danh sách role", ApiPath = "/api/roles", Method = HttpMethodType.GET, Module = "ROLE" },
+                new() { Name = "GET_ROLE_DETAIL", Description = "Chi tiết role", ApiPath = "/api/roles/{id}", Method = HttpMethodType.GET, Module = "ROLE" },
+                new() { Name = "ADD_ROLE_PERMISSIONS", Description = "Gán quyền cho role", ApiPath = "/api/roles/{id}/permissions", Method = HttpMethodType.POST, Module = "ROLE" },
+                new() { Name = "REMOVE_ROLE_PERMISSIONS", Description = "Xóa quyền khỏi role", ApiPath = "/api/roles/{id}/permissions", Method = HttpMethodType.DELETE, Module = "ROLE" },
+
+                // PERMISSION
+                new() { Name = "GET_PERMISSIONS", Description = "Danh sách permission", ApiPath = "/api/permissions", Method = HttpMethodType.GET, Module = "PERMISSION" },
+                new() { Name = "GET_PERMISSION_DETAIL", Description = "Chi tiết permission", ApiPath = "/api/permissions/{id}", Method = HttpMethodType.GET, Module = "PERMISSION" }
+            };
+
+            foreach (var p in permissions)
+            {
+                var exists = await context.Permissions.AnyAsync(x => x.Name == p.Name);
+                if (!exists)
+                    await context.Permissions.AddAsync(p);
             }
+
+            await context.SaveChangesAsync();
         }
     }
-}
+    }
+

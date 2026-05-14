@@ -7,29 +7,25 @@ namespace Demo_Course_Management.Models
     [Table("Users")]
     public class User : BaseEntity
     {
-        [Required]
-        [MaxLength(50)]
-        public string Username { get; set; } = null!; // tài khoản đăng nhập
+        [Required, MaxLength(50)]
+        public string Username { get; set; } = null!;
 
         [Required]
-        public string PasswordHash { get; set; } = null!; // hash mật khẩu
+        public string PasswordHash { get; set; } = null!;
 
-        [Required]
-        [MaxLength(100)]
-        public string FullName { get; set; } = null!; // họ tên
+        [Required, MaxLength(100)]
+        public string FullName { get; set; } = null!;
 
-        [Required]
-        [EmailAddress]
-        [MaxLength(100)]
-        public string Email { get; set; } = null!; // email
+        [Required, EmailAddress, MaxLength(100)]
+        public string Email { get; set; } = null!;
 
         public bool IsActive { get; set; } = true;
 
-        [Required]
-        public int RoleId { get; set; } // FK → Role
+        //Refresh Token (simple version - 1 device)
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiredAt { get; set; }
 
-        public Role Role { get; set; } = null!; // navigation property
-
+        public List<UserRole> UserRoles { get; set; } = new();
         public List<Order> Orders { get; set; } = new();
     }
 }

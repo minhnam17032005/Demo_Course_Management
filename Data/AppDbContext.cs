@@ -16,6 +16,7 @@ namespace Demo_Course_Management.Data
         public DbSet<Permission> Permissions { get; set; } = null!;
         public DbSet<RolePermission> RolePermissions { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<UserRole> UserRoles { get; set; } = null!;
         public DbSet<Category> Categories { get; set; } = null!;
         public DbSet<Product> Products { get; set; } = null!;
         public DbSet<Order> Orders { get; set; } = null!;
@@ -41,18 +42,27 @@ namespace Demo_Course_Management.Data
                 .Property(o => o.Status)
                 .HasConversion<string>();
 
-            //Unique 
-
 
             //Relationships
             // =========================
-            // 1. Role - User (1 - N)
+            // 1. Role - User (N - N UserRole)
             // =========================
-            modelBuilder.Entity<User>()
-                .HasOne(u => u.Role)
-                .WithMany(r => r.Users)
-                .HasForeignKey(u => u.RoleId)
+            modelBuilder.Entity<UserRole>()
+                 .HasIndex(rp => new { rp.UserId, rp.RoleId })
+                 .IsUnique();
+            
+            modelBuilder.Entity<UserRole>()
+                .HasOne(rp => rp.User)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(rp => rp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserRole>()
+                .HasOne(rp => rp.Role)  
+                .WithMany(p => p.UserRoles)
+                .HasForeignKey(rp => rp.RoleId)
                 .OnDelete(DeleteBehavior.Restrict);
+
 
             // =========================
             // 2. Role - Permission (N - N  RolePermission)

@@ -11,77 +11,53 @@ namespace Demo_Course_Management.Data.Seeding
             var roles = await context.Roles.ToListAsync();
             var permissions = await context.Permissions.ToListAsync();
 
-            var admin = roles.FirstOrDefault(r => r.Name == RoleType.ADMIN);
-            var staff = roles.FirstOrDefault(r => r.Name == RoleType.STAFF);
-            var customer = roles.FirstOrDefault(r => r.Name == RoleType.CUSTOMER);
-
-            if (admin == null || staff == null || customer == null) return;
-
-            //existing để tránh trùng
-            var existing = await context.RolePermissions
-                .Select(rp => new { rp.RoleId, rp.PermissionId })
-                .ToListAsync();
+            var admin = roles.First(x => x.Name == RoleType.ADMIN);
+            var manager = roles.First(x => x.Name == RoleType.MANAGER);
+            var staff = roles.First(x => x.Name == RoleType.STAFF);
+            var customer = roles.First(x => x.Name == RoleType.CUSTOMER);
 
             var toAdd = new List<RolePermission>();
 
-            //ADMIN → full quyền
+            void AddIfNotExists(int roleId, int permissionId)
+            {
+                if (!context.RolePermissions.Any(x => x.RoleId == roleId && x.PermissionId == permissionId))
+                {
+                    toAdd.Add(new RolePermission
+                    {
+                        RoleId = roleId,
+                        PermissionId = permissionId
+                    });
+                }
+            }
+
+            // ADMIN
             foreach (var p in permissions)
-            {
-                if (!existing.Any(e => e.RoleId == admin.Id && e.PermissionId == p.Id))
-                {
-                    toAdd.Add(new RolePermission
-                    {
-                        RoleId = admin.Id,
-                        PermissionId = p.Id
-                    });
-                }
-            }
+                AddIfNotExists(admin.Id, p.Id);
 
-            //STAFF → Category + Product (GET, POST, PUT)
-            var staffPermissions = permissions
-                .Where(p =>
-                    (p.Module == "Category" || p.Module == "Product") &&
-                    (p.Method == HttpMethodType.GET ||
-                     p.Method == HttpMethodType.POST ||
-                     p.Method == HttpMethodType.PUT))
-                .ToList();
+            // MANAGER
+            foreach (var p in permissions.Where(p =>
+                p.Module is "CATEGORY" or "PRODUCT" or "ORDER" or "USER"))
+                AddIfNotExists(manager.Id, p.Id);
 
-            foreach (var p in staffPermissions)
-            {
-                if (!existing.Any(e => e.RoleId == staff.Id && e.PermissionId == p.Id))
-                {
-                    toAdd.Add(new RolePermission
-                    {
-                        RoleId = staff.Id,
-                        PermissionId = p.Id
-                    });
-                }
-            }
+            // STAFF
+            foreach (var p in permissions.Where(p =>
+                p.Module == "CATEGORY"
+                || p.Module == "PRODUCT"
+                || (p.Module == "ORDER" &&
+                    (p.Method == HttpMethodType.GET || p.Method == HttpMethodType.PATCH))
+                || (p.Module == "USER" && p.Method == HttpMethodType.GET)))
+                AddIfNotExists(staff.Id, p.Id);
 
-            //CUSTOMER → chỉ GET (Category + Product)
-            var customerPermissions = permissions
-                .Where(p =>
-                    (p.Module == "Category" || p.Module == "Product") &&
-                    p.Method == HttpMethodType.GET)
-                .ToList();
+            // CUSTOMER
+            foreach (var p in permissions.Where(p =>
+                (p.Module == "CATEGORY" && p.Method == HttpMethodType.GET)
+                || (p.Module == "PRODUCT" && p.Method == HttpMethodType.GET)
+                || (p.Module == "ORDER" &&
+                    (p.Method == HttpMethodType.GET || p.Method == HttpMethodType.POST))))
+                AddIfNotExists(customer.Id, p.Id);
 
-            foreach (var p in customerPermissions)
-            {
-                if (!existing.Any(e => e.RoleId == customer.Id && e.PermissionId == p.Id))
-                {
-                    toAdd.Add(new RolePermission
-                    {
-                        RoleId = customer.Id,
-                        PermissionId = p.Id
-                    });
-                }
-            }
-
-            if (toAdd.Any())
-            {
-                context.RolePermissions.AddRange(toAdd);
-                await context.SaveChangesAsync();
-            }
+            await context.RolePermissions.AddRangeAsync(toAdd);
+            await context.SaveChangesAsync();
         }
     }
 }

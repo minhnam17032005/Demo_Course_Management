@@ -8,6 +8,7 @@ namespace Demo_Course_Management.Controllers
 {
     [ApiController]
     [Route("api/categories")]
+    [Produces("application/json")]
     public class CategoryController : ControllerBase
     {
         private readonly CategoryService _service;
@@ -50,17 +51,17 @@ namespace Demo_Course_Management.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult<StatusResponseDTO>> Delete(int id)
         {
-            await _service.DeleteAsync(id);
-            return NoContent(); // 204 chuẩn REST
+            var response = await _service.DeleteAsync(id);
+            return Ok(response);
         }
 
         [HttpPatch("{id}/restore")]
-        public async Task<IActionResult> Restore(int id)
+        public async Task<ActionResult<StatusResponseDTO>> Restore(int id)
         {
-            await _service.RestoreAsync(id);
-            return Ok(new { message = "Khôi phục danh mục thành công." });
+            var response = await _service.RestoreAsync(id);
+            return Ok(response);
         }
     }
 }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Demo_Course_Management.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260418155527_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260423121849_ChangeUserRoleToManyToMany")]
+    partial class ChangeUserRoleToManyToMany
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -276,9 +276,6 @@ namespace Demo_Course_Management.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -289,9 +286,40 @@ namespace Demo_Course_Management.Migrations
 
                     b.HasKey("Id");
 
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Demo_Course_Management.Models.UserRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
                     b.HasIndex("RoleId");
 
-                    b.ToTable("Users");
+                    b.HasIndex("UserId", "RoleId")
+                        .IsUnique();
+
+                    b.ToTable("UserRoles");
                 });
 
             modelBuilder.Entity("Demo_Course_Management.Models.Order", b =>
@@ -354,15 +382,23 @@ namespace Demo_Course_Management.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("Demo_Course_Management.Models.User", b =>
+            modelBuilder.Entity("Demo_Course_Management.Models.UserRole", b =>
                 {
                     b.HasOne("Demo_Course_Management.Models.Role", "Role")
-                        .WithMany("Users")
+                        .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Demo_Course_Management.Models.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Role");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Demo_Course_Management.Models.Category", b =>
@@ -389,12 +425,14 @@ namespace Demo_Course_Management.Migrations
                 {
                     b.Navigation("RolePermissions");
 
-                    b.Navigation("Users");
+                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("Demo_Course_Management.Models.User", b =>
                 {
                     b.Navigation("Orders");
+
+                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

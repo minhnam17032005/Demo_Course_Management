@@ -3,6 +3,7 @@
     public enum RoleType
     {
         ADMIN,
+        MANAGER,
         STAFF,
         CUSTOMER
     }

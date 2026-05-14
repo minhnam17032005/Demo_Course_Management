@@ -8,6 +8,7 @@ namespace Demo_Course_Management.Controllers
 {
     [ApiController]
     [Route("api/products")]
+    [Produces("application/json")]
     public class ProductController : ControllerBase
     {
         private readonly ProductService _service;
@@ -56,16 +57,16 @@ namespace Demo_Course_Management.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult<StatusResponseDTO>> Delete(int id)
         {
-            await _service.DeleteAsync(id);
-            return NoContent();
+            var response = await _service.DeleteAsync(id);
+            return Ok(response);
         }
         [HttpPatch("{id}/restore")]
-        public async Task<IActionResult> Restore(int id)
+        public async Task<ActionResult<StatusResponseDTO>> Restore(int id)
         {
-            await _service.RestoreAsync(id);
-            return Ok(new { message = "Khôi phục sản phẩm thành công." });
+            var response =  await _service.RestoreAsync(id);
+            return Ok(response);
         }
     }
 }
