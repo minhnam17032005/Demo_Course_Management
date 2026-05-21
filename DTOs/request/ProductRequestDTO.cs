@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 
-namespace Demo_Course_Management.DTOs.request
+namespace ShopManagementAPI.DTOs.request
 {
     public class ProductRequestDTO
     {

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Demo_Course_Management.Migrations
+namespace ShopManagementAPI.Migrations
 {
     /// <inheritdoc />
     public partial class InitDatabase : Migration

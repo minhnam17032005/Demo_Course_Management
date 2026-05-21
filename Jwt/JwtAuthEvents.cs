@@ -3,7 +3,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json;
 
-namespace Demo_Course_Management.Jwt
+namespace ShopManagementAPI.Jwt
 {
     public class JwtAuthEvents : JwtBearerEvents
     {

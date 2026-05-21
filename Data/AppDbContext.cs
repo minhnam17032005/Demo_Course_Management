@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Models.Enum;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Models.Enum;
 
-namespace Demo_Course_Management.Data
+namespace ShopManagementAPI.Data
 {
     public class AppDbContext : DbContext
     {

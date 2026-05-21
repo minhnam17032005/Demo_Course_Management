@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.DTOs
+﻿namespace ShopManagementAPI.DTOs
 {
     public class OrderItemResponseDTO
     {

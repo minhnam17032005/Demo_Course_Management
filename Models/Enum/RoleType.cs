@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.Models.Enum
+﻿namespace ShopManagementAPI.Models.Enum
 {
     public enum RoleType
     {

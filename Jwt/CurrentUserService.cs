@@ -1,7 +1,7 @@
 ﻿
 using System.Security.Claims;
 
-namespace Demo_Course_Management.Jwt
+namespace ShopManagementAPI.Jwt
     {
         //Claims dùng để đọc user hiện tại
         public class CurrentUserService

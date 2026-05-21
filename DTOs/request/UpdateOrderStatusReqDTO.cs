@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using Demo_Course_Management.Models.Enum;
+using ShopManagementAPI.Models.Enum;
 
-namespace Demo_Course_Management.DTOs.request
+namespace ShopManagementAPI.DTOs.request
 {
     public class UpdateOrderStatusReqDTO
     {

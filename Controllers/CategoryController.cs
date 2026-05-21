@@ -1,11 +1,11 @@
-﻿using Demo_Course_Management.DTOs.request;
-using Demo_Course_Management.DTOs.response;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Services;
+﻿using ShopManagementAPI.DTOs.request;
+using ShopManagementAPI.DTOs.response;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Demo_Course_Management.Controllers
+namespace ShopManagementAPI.Controllers
 {
     [ApiController]
     [Route("api/categories")]

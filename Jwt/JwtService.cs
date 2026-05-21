@@ -1,12 +1,12 @@
-﻿using Demo_Course_Management.DTOs;
-using Demo_Course_Management.Models;
+﻿using ShopManagementAPI.DTOs;
+using ShopManagementAPI.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Demo_Course_Management.Jwt
+namespace ShopManagementAPI.Jwt
 {
     public class JwtService
     {

@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.DTOs.request
+﻿namespace ShopManagementAPI.DTOs.request
 {
     public class RolePermissionRequestDTO
     {

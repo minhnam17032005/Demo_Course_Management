@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Demo_Course_Management.Models
+namespace ShopManagementAPI.Models
 {
     [Table("Categories")]
     public class Category : BaseEntity

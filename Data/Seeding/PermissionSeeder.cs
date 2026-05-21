@@ -1,8 +1,8 @@
-﻿using Demo_Course_Management.Models.Enum;
-using Demo_Course_Management.Models;
+﻿using ShopManagementAPI.Models.Enum;
+using ShopManagementAPI.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Demo_Course_Management.Data.Seeding
+namespace ShopManagementAPI.Data.Seeding
 {
     public static class PermissionSeeder
     {

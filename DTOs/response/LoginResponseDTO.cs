@@ -1,7 +1,7 @@
-﻿using Demo_Course_Management.Models;
-using Demo_Course_Management.Models.Enum;
+﻿using ShopManagementAPI.Models;
+using ShopManagementAPI.Models.Enum;
 
-namespace Demo_Course_Management.DTOs.response
+namespace ShopManagementAPI.DTOs.response
 {
     public class LoginResponseDTO
     {

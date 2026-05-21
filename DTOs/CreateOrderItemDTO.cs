@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Demo_Course_Management.DTOs
+namespace ShopManagementAPI.DTOs
 {
     public class CreateOrderItemDTO
     {

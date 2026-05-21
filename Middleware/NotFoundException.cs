@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.Middleware
+﻿namespace ShopManagementAPI.Middleware
 {
     public class NotFoundException : Exception
     {

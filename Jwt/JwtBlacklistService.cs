@@ -1,6 +1,6 @@
 ﻿using StackExchange.Redis;
 
-namespace Demo_Course_Management.Jwt
+namespace ShopManagementAPI.Jwt
 {
     public class JwtBlacklistService
     {

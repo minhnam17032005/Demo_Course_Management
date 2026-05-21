@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.DTOs.response
+﻿namespace ShopManagementAPI.DTOs.response
 {
     public class RolePermissionResponseDTO
     {

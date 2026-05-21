@@ -1,13 +1,13 @@
-﻿using Demo_Course_Management.DTOs.response;
-using Demo_Course_Management.DTOs;
+﻿using ShopManagementAPI.DTOs.response;
+using ShopManagementAPI.DTOs;
 using Microsoft.EntityFrameworkCore;
-using Demo_Course_Management.Data;
-using Demo_Course_Management.Middleware;
-using Demo_Course_Management.Models.Enum;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Repositories;
+using ShopManagementAPI.Data;
+using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Models.Enum;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Repositories;
 
-namespace Demo_Course_Management.Services
+namespace ShopManagementAPI.Services
 {
     public class RoleService
     {

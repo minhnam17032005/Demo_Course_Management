@@ -1,9 +1,9 @@
-﻿using Demo_Course_Management.Middleware;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Models.Enum;
+﻿using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Models.Enum;
 using Microsoft.EntityFrameworkCore;
 
-namespace Demo_Course_Management.Data.Seeding
+namespace ShopManagementAPI.Data.Seeding
 {
     public static class UserSeeder
     {

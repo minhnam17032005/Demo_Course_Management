@@ -1,12 +1,12 @@
-﻿using Demo_Course_Management.Data;
-using Demo_Course_Management.DTOs.request;
-using Demo_Course_Management.DTOs.response;
-using Demo_Course_Management.Middleware;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Repositories;
+﻿using ShopManagementAPI.Data;
+using ShopManagementAPI.DTOs.request;
+using ShopManagementAPI.DTOs.response;
+using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace Demo_Course_Management.Services
+namespace ShopManagementAPI.Services
 {
     public class PermissionService
     {

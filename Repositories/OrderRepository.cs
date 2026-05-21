@@ -1,10 +1,10 @@
-﻿using Demo_Course_Management.Data;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Models.Enum;
+﻿using ShopManagementAPI.Data;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Models.Enum;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace Demo_Course_Management.Repositories
+namespace ShopManagementAPI.Repositories
 {
     public class OrderRepository
     {

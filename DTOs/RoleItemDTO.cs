@@ -1,6 +1,6 @@
-﻿using Demo_Course_Management.Models.Enum;
+﻿using ShopManagementAPI.Models.Enum;
 
-namespace Demo_Course_Management.DTOs
+namespace ShopManagementAPI.DTOs
 {
     public class RoleItemDTO
     {

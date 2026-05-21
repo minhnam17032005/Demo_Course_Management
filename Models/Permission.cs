@@ -1,9 +1,9 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Demo_Course_Management.Models.Enum;
+using ShopManagementAPI.Models.Enum;
 
-namespace Demo_Course_Management.Models
+namespace ShopManagementAPI.Models
 {
     [Table("Permissions")]
     public class Permission : BaseEntity

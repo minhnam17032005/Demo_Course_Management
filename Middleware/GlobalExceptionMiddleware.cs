@@ -1,4 +1,4 @@
-﻿namespace Demo_Course_Management.Middleware
+﻿namespace ShopManagementAPI.Middleware
 {
     using System.Net;
     using System.Text.Json;

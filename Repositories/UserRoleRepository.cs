@@ -1,7 +1,7 @@
-﻿using Demo_Course_Management.Data;
-using Demo_Course_Management.Models;
+﻿using ShopManagementAPI.Data;
+using ShopManagementAPI.Models;
 
-namespace Demo_Course_Management.Repositories
+namespace ShopManagementAPI.Repositories
 {
     public class UserRoleRepository
     {

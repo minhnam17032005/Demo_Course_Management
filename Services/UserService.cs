@@ -1,15 +1,15 @@
-﻿    using System.Data;
+﻿using System.Data;
 using System.Data.Common;
-using Demo_Course_Management.DTOs;
-using Demo_Course_Management.DTOs.request;
-using Demo_Course_Management.DTOs.response;
-using Demo_Course_Management.Middleware;
-using Demo_Course_Management.Models;
-using Demo_Course_Management.Models.Enum;
-using Demo_Course_Management.Repositories;
+using ShopManagementAPI.DTOs;
+using ShopManagementAPI.DTOs.request;
+using ShopManagementAPI.DTOs.response;
+using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Models;
+using ShopManagementAPI.Models.Enum;
+using ShopManagementAPI.Repositories;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace Demo_Course_Management.Services
+namespace ShopManagementAPI.Services
 {
     public class UserService
     {
