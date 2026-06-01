@@ -4,6 +4,7 @@ using ShopManagementAPI.Models;
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPIControllers
 {
@@ -18,8 +19,9 @@ namespace ShopManagementAPIControllers
             {
                 _service = service;
             }
-
+     
         [Authorize]
+        [RequirePermission(Permissions.CreateOrder)]
         [HttpPost]
         public async Task<ActionResult<OrderResponseDTO>> Create(CreateOrderReqDTO dto)
         {
@@ -31,15 +33,17 @@ namespace ShopManagementAPIControllers
            );
         }
 
+        //dành cho management
         [Authorize]
+        [RequirePermission(Permissions.GetOrders)]
         [HttpGet]
         public async Task<ActionResult<List<OrderResponseDTO>>> GetAll()
         {
             var result = await _service.GetAllAsync();
             return Ok(result);
         }
-
         [Authorize]
+        [RequirePermission(Permissions.GetOrderDetail)]
         [HttpGet("{id}")]
         public async Task<ActionResult<OrderResponseDTO>> GetById(int id)
         {
@@ -47,11 +51,40 @@ namespace ShopManagementAPIControllers
             return Ok(result);
         }
 
+        //dành cho customer
         [Authorize]
+        //[RequirePermission
+        [HttpGet("my-orders")]
+        public async Task<ActionResult<List<OrderResponseDTO>>> GetMyOrders()
+        {
+            var result = await _service.GetMyOrdersAsync();
+            return Ok(result);
+        }   
+        [Authorize]
+        //[RequirePermission
+        [HttpGet("my-orders/{id}")]
+        public async Task<ActionResult<OrderResponseDTO>> GetMyOrderById(int id)
+        {
+            var result = await _service.GetMyOrderByIdAsync(id);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [RequirePermission(Permissions.UpdateOrderStatus)]
         [HttpPatch("{id}/status")]
         public async Task<ActionResult<OrderResponseDTO>> UpdateStatus(int id, UpdateOrderStatusReqDTO dto)
         {
             var result = await _service.UpdateStatusAsync(id, dto);
+            return Ok(result);
+        }
+
+        [Authorize]
+        //[RequirePermission
+        [HttpPatch("{id}/cancel")]
+        public async Task<ActionResult<OrderResponseDTO>> CancelOrder(int id)
+        {
+            var result = await _service.CancelOrderAsync(id);
+
             return Ok(result);
         }
     }

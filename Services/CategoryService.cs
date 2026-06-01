@@ -1,7 +1,7 @@
 ﻿using ShopManagementAPI.Data;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -23,7 +23,7 @@ namespace ShopManagementAPI.Services
         {
             // 1. check trùng name
             if (await _repoCategory.ExistsByNameAsync(dto.Name))
-                throw new BadRequestException("Category name already exists");
+                throw new ConflictException("Category name already exists");
 
             // 2. tạo entity
             var category = new Category
@@ -46,11 +46,11 @@ namespace ShopManagementAPI.Services
             var category = await _repoCategory.GetByIdAsync(id)
                 ?? throw new NotFoundException("Category not found");
             if (!category.IsActive)
-                throw new BadRequestException("Danh mục đã ngừng hoạt động.");
+                throw new ConflictException("Danh mục đã ngừng hoạt động.");
 
             // 2. check trùng name (trừ chính nó)
             if (await _repoCategory.ExistsByNameExcludeIdAsync(dto.Name, id))
-                throw new BadRequestException("Category name already exists");
+                throw new ConflictException("Category name already exists");
 
             // 3. update dữ liệu
             category.Name = dto.Name;
@@ -112,7 +112,7 @@ namespace ShopManagementAPI.Services
                 ?? throw new NotFoundException("Category not found");
 
             if (category.IsActive)
-                throw new BadRequestException("Danh mục đang hoạt động.");
+                throw new ConflictException("Danh mục đang hoạt động.");
 
             category.IsActive = true;
             category.UpdatedAt = DateTime.UtcNow;

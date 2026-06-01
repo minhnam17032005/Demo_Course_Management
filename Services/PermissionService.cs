@@ -1,7 +1,7 @@
 ﻿using ShopManagementAPI.Data;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Repositories;
 using Microsoft.EntityFrameworkCore;

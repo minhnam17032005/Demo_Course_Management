@@ -5,6 +5,7 @@ using ShopManagementAPI.Models;
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -21,6 +22,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.CreateUser)]
         [HttpPost]
         public async Task<ActionResult<UserResponseDTO>> Create([FromBody] CreateUserReqDTO dto)
         {
@@ -33,14 +35,16 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
-        [HttpPut("{id}/profile")]
-        public async Task<ActionResult<UserResponseDTO>> ChangeProfile(int id, ChangeProfileReqDTO dto)
+        [RequirePermission(Permissions.UpdateUserProfile)]
+        [HttpPut("profile")]
+        public async Task<ActionResult<UserResponseDTO>> ChangeProfile( ChangeProfileReqDTO dto)
         {
-            var result = await _service.ChangeProfileAsync(id, dto);
+            var result = await _service.ChangeProfileAsync(dto);
             return Ok(result);
         }
 
         [Authorize]
+        [RequirePermission(Permissions.AddUserRoles)]
         [HttpPost("{id}/roles")]
         public async Task<ActionResult<UserResponseDTO>> AddRoles(
             int id,
@@ -56,6 +60,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.RemoveUserRoles)]
         [HttpDelete("{id}/roles")]
         public async Task<ActionResult<UserResponseDTO>> RemoveRoles(
             int id,
@@ -70,6 +75,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetUsers)]
         [HttpGet]
         public async Task<ActionResult<List<UserResponseDTO>>> GetAll()
         {
@@ -78,6 +84,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetUserDetail)]
         [HttpGet("{id}")]
         public async Task<ActionResult<UserResponseDTO>> GetById(int id)
         {
@@ -86,6 +93,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.LockUser)]
         [HttpPatch("{id}/lock")]
         public async Task<ActionResult<StatusResponseDTO>> Lock(int id)
         {
@@ -94,6 +102,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.UnlockUser)]
         [HttpPatch("{id}/unlock")]
         public async Task<ActionResult<StatusResponseDTO>> Unlock(int id)
         {

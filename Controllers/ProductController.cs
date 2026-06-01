@@ -4,6 +4,7 @@ using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -20,6 +21,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.CreateProduct)]
         [HttpPost]
         public async Task<ActionResult<ProductResponseDTO>> Create([FromBody] ProductRequestDTO dto)
         {
@@ -47,6 +49,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.UpdateProduct)]
         [HttpPut("{id}")]
         public async Task<ActionResult<ProductResponseDTO>> Update(int id, UpdateProductDTO dto)
         {
@@ -54,6 +57,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.UpdateProductStock)]
         [HttpPatch("{id}/stock")]
         public async Task<ActionResult<ProductResponseDTO>> UpdateStock(
             int id,
@@ -63,6 +67,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.DeleteProduct)]
         [HttpDelete("{id}")]
         public async Task<ActionResult<StatusResponseDTO>> Delete(int id)
         {
@@ -71,6 +76,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.RestoreProduct)]
         [HttpPatch("{id}/restore")]
         public async Task<ActionResult<StatusResponseDTO>> Restore(int id)
         {

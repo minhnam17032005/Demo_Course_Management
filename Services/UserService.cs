@@ -3,11 +3,14 @@ using System.Data.Common;
 using ShopManagementAPI.DTOs;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Models.Enum;
 using ShopManagementAPI.Repositories;
 using Microsoft.AspNetCore.Http.HttpResults;
+using ShopManagementAPI.Authorization;
+using ShopManagementAPI.Jwt;
+using Microsoft.EntityFrameworkCore;
 
 namespace ShopManagementAPI.Services
 {
@@ -17,25 +20,31 @@ namespace ShopManagementAPI.Services
         private readonly UserRoleRepository _repoUserRole;
         private readonly RoleRepository _repoRole;
         private readonly OrderRepository _repoOrder;
+        private readonly PermissionCacheService _permissionCacheService;
+        private readonly CurrentUserService _currentUserService;
+        private readonly UserDataScopeService _userDataScopeService;
       
 
-        public UserService(UserRepository repoUser, RoleRepository repoRole, 
-            UserRoleRepository repoUserRole, OrderRepository repoOrder)
+        public UserService(UserRepository repoUser, RoleRepository repoRole, CurrentUserService currentUserService,
+            UserRoleRepository repoUserRole, OrderRepository repoOrder, PermissionCacheService permissionCacheService, UserDataScopeService userDataScopeService)
         {
             _repoUser = repoUser;
             _repoRole = repoRole;
             _repoUserRole = repoUserRole;
             _repoOrder = repoOrder;
+            _permissionCacheService = permissionCacheService;
+            _currentUserService = currentUserService;
+            _userDataScopeService = userDataScopeService;
         }
 
         public async Task<UserResponseDTO> CreateAsync(CreateUserReqDTO dto)
         {
             // check username
             if (await _repoUser.IsUsernameExists(dto.Username))
-                throw new BadRequestException("Username already exists");
+                throw new ConflictException("Username already exists");
             // check email
             if (await _repoUser.IsEmailExists(dto.Email))
-                throw new BadRequestException("Email already exists");
+                throw new ConflictException("Email already exists");
             // check roleIds null / empty
             if (dto.RoleIds == null || !dto.RoleIds.Any())
                 throw new BadRequestException("RoleIds is required");
@@ -88,15 +97,14 @@ namespace ShopManagementAPI.Services
         }
 
         //update profile or fullname
-        public async Task<UserResponseDTO> ChangeProfileAsync(int id,ChangeProfileReqDTO dto)
+        public async Task<UserResponseDTO> ChangeProfileAsync(ChangeProfileReqDTO dto)
         {
-            var user = await _repoUser.GetByIdWithRolesAsync(id);
+            var userId = _currentUserService.UserId;
+
+            var user = await _repoUser.GetByIdWithRolesAsync(userId);
 
             if (user == null)
-                throw new Exception("User not found");
-
-            if (!user.IsActive)
-                throw new Exception("User is inactive");
+                throw new NotFoundException("User not found");
 
             user.FullName = dto.FullName;
             user.UpdatedAt = DateTime.UtcNow;
@@ -111,8 +119,7 @@ namespace ShopManagementAPI.Services
             //vallidate
             var user = await _repoUser.GetByIdWithRolesAsync(userId)
                 ?? throw new NotFoundException("Không tìm thấy người dùng.");
-            if (!user.IsActive)
-                throw new BadRequestException("Tài khoản người dùng đang bị khóa.");
+
             var newRoleIds = roleIds?.Distinct().ToList()
                 ?? throw new BadRequestException("Danh sách vai trò không được để trống.");
 
@@ -137,8 +144,9 @@ namespace ShopManagementAPI.Services
             var addIds = newRoleIds.Except(currentIds).ToList();
 
             if (!addIds.Any())
-                throw new BadRequestException("Không có vai trò mới để thêm.");
+                throw new ConflictException("Người dùng đã có các vai trò này.");
 
+            //thêm những roles mới 
             user.UserRoles.AddRange(addIds.Select(id => new UserRole
             {
                 UserId = user.Id,
@@ -146,6 +154,10 @@ namespace ShopManagementAPI.Services
             }));
 
             await _repoUser.SaveAsync();
+            // role user thay đổi -> clear permission cache
+            await _permissionCacheService
+                .RemovePermissionsAsync(userId);
+
             return MapToDTO(user);
         }
 
@@ -153,8 +165,7 @@ namespace ShopManagementAPI.Services
         {
             var user = await _repoUser.GetByIdWithRolesAsync(userId)
                 ?? throw new NotFoundException("Không tìm thấy người dùng.");
-            if (!user.IsActive)
-                throw new BadRequestException("Tài khoản người dùng đang bị khóa.");
+
             var removeIds = roleIds?.Distinct().ToList()
                 ?? throw new BadRequestException("Danh sách vai trò không được để trống.");
 
@@ -164,7 +175,7 @@ namespace ShopManagementAPI.Services
                 .ToList();
 
             if (!existingRoles.Any())
-                throw new BadRequestException("Không tìm thấy vai trò nào tồn tại");
+                throw new NotFoundException("Không tìm thấy vai trò nào tồn tại");
 
             // không cho xóa hết role
             var remainingCount = user.UserRoles.Count - existingRoles.Count;
@@ -174,16 +185,30 @@ namespace ShopManagementAPI.Services
             _repoUserRole.RemoveRange(existingRoles);
 
             await _repoUser.SaveAsync();
+            // role user thay đổi -> clear permission cache
+            await _permissionCacheService
+                .RemovePermissionsAsync(userId);
+
             return MapToDTO(user);
         }
 
 
         public async Task<List<UserResponseDTO>> GetAllAsync()
         {
-            var users = await _repoUser.GetAllAsync();
+            var currentUserRoles = _currentUserService.Roles
+                .Select(r => Enum.Parse<RoleType>(r))
+                .ToList();
 
-            //sau có phân quyền sẽ phần quyền lại xem ai được xem gì 
-            return users.Select(user => MapToDTO(user)).ToList();
+            var query = _repoUser.Query();
+
+            query = _userDataScopeService
+                .FilterUsers(query, currentUserRoles);
+
+            var users = await query.ToListAsync();
+
+            return users
+                .Select(MapToDTO)
+                .ToList();
         }
 
         public async Task<UserResponseDTO> GetByIdAsync(int id)
@@ -192,26 +217,51 @@ namespace ShopManagementAPI.Services
 
             if (user == null)
                 throw new NotFoundException("User not found");
-            
-            //sau có phân quyền sẽ phần quyền lại xem ai được xem gì 
+
+            var currentRoles = _currentUserService.Roles
+                .Select(r => Enum.Parse<RoleType>(r))
+                .ToList();
+
+            if (!_userDataScopeService.CanViewUser(
+                    currentRoles,
+                    user))
+            {
+                throw new ForbiddenException(
+                    "You do not have permission to view this user");
+            }
+
             return MapToDTO(user);
         }
 
         public async Task<StatusResponseDTO> LockAsync(int id)
         {
-            var user = await _repoUser.GetByIdAsync(id);
+            var user = await _repoUser.GetByIdWithRolesAsync(id);
+
             if (user == null)
                 throw new NotFoundException("User not found");
 
+            var currentRoles = _currentUserService.Roles
+                .Select(r => Enum.Parse<RoleType>(r))
+                .ToList();
+
+            if (!_userDataScopeService.CanManageUser(
+                    currentRoles,
+                    user))
+            {
+                throw new ForbiddenException(
+                    "You do not have permission to lock this user");
+            }
+
             if (!user.IsActive)
-                throw new BadRequestException("Tài khoản đã bị khóa.");
+                throw new BadRequestException(
+                    "Tài khoản đã bị khóa.");
 
-            // Không cho khóa Admin
-            if (user.UserRoles.Any(r => r.Role.Name == RoleType.ADMIN))
-                throw new BadRequestException("Không được khóa tài khoản Admin.");
+            if (user.Id == _currentUserService.UserId)
+                throw new BadRequestException(
+                    "Không thể tự khóa tài khoản của chính mình.");
 
-            // Chỉ chặn nếu còn đơn Pending
-            var hasPendingOrders = await _repoOrder.AnyPendingByUserIdAsync(id);
+            var hasPendingOrders =
+                await _repoOrder.AnyPendingByUserIdAsync(id);
 
             if (hasPendingOrders)
                 throw new ConflictException(
@@ -221,29 +271,51 @@ namespace ShopManagementAPI.Services
             user.UpdatedAt = DateTime.UtcNow;
 
             await _repoUser.SaveAsync();
+
+            await _permissionCacheService
+                .RemovePermissionsAsync(id);
+
             return new StatusResponseDTO
             {
-                IsActive = user.IsActive,
+                IsActive = false,
                 Message = "User locked successfully"
             };
         }
 
         public async Task<StatusResponseDTO> UnlockAsync(int id)
         {
-            var user = await _repoUser.GetByIdAsync(id);
+            var user = await _repoUser.GetByIdWithRolesAsync(id);
+
             if (user == null)
                 throw new NotFoundException("User not found");
 
-            if (user.IsActive)
-                throw new BadRequestException("Tài khoản đang hoạt động.");
+            var currentRoles = _currentUserService.Roles
+                .Select(r => Enum.Parse<RoleType>(r))
+                .ToList();
 
+            if (!_userDataScopeService.CanManageUser(
+                    currentRoles,
+                    user))
+            {
+                throw new ForbiddenException(
+                    "You do not have permission to unlock this user");
+            }
+
+            if (user.IsActive)
+                throw new BadRequestException(
+                    "Tài khoản đang hoạt động.");
+                
             user.IsActive = true;
             user.UpdatedAt = DateTime.UtcNow;
 
             await _repoUser.SaveAsync();
+
+            await _permissionCacheService
+                .RemovePermissionsAsync(id);
+
             return new StatusResponseDTO
             {
-                IsActive = user.IsActive,
+                IsActive = true,
                 Message = "User unlocked successfully"
             };
         }

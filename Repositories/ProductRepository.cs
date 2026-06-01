@@ -82,5 +82,10 @@ namespace ShopManagementAPI.Repositories
                     x.CategoryId == categoryId &&
                     x.IsActive);
         }
+
+        public async Task<int> CountAsync()
+        {
+            return await _context.Products.CountAsync();
+        }
     }
 }

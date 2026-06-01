@@ -4,6 +4,7 @@ using ShopManagementAPI.Models;
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -20,6 +21,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.CreateCategory)]
         [HttpPost]
         public async Task<ActionResult<CategoryResponseDTO>> Create([FromBody] CategoryRequestDTO dto)
         {
@@ -32,6 +34,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.UpdateCategory)]
         [HttpPut("{id}")]
         public async Task<ActionResult<CategoryResponseDTO>> Update([FromRoute] int id, [FromBody] CategoryRequestDTO dto)
         {
@@ -56,6 +59,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.DeleteCategory)]
         [HttpDelete("{id}")]
         public async Task<ActionResult<StatusResponseDTO>> Delete(int id)
         {
@@ -64,6 +68,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.RestoreCategory)]
         [HttpPatch("{id}/restore")]
         public async Task<ActionResult<StatusResponseDTO>> Restore(int id)
         {

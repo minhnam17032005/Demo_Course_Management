@@ -3,6 +3,7 @@ using ShopManagementAPI.DTOs.response;
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -19,6 +20,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetRoles)]
         [HttpGet]
         public async Task<ActionResult<List<RoleResponseDTO>>> GetAll()
         {
@@ -26,6 +28,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetRoleDetail)]
         [HttpGet("{id}")]
         public async Task<ActionResult<RoleResponseDTO>> GetById(int id)
         {
@@ -33,6 +36,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.AddRolePermissions)]
         [HttpPost("{id}/permissions")]
         public async Task<ActionResult<RolePermissionResponseDTO>> AddPermissions(int id,[FromBody] RolePermissionRequestDTO request)
         {
@@ -40,6 +44,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.RemoveRolePermissions)]
         [HttpDelete("{id}/permissions")]
         public async Task<ActionResult<RolePermissionResponseDTO>> RemovePermissions(int id,[FromBody] RolePermissionRequestDTO request)
         {

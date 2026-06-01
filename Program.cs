@@ -15,6 +15,7 @@ using System.Text;
 using StackExchange.Redis;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using ShopManagementAPI.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,24 +69,30 @@ builder.Services.AddScoped<OrderItemRepository>();
 //====Service====
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<PermissionService>();
 
 builder.Services.AddScoped<CurrentUserService>();
+builder.Services.AddScoped<UserDataScopeService>();
+builder.Services.AddScoped<DashboardService>();
 
 builder.Services.AddScoped<RoleService>();
+builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<JwtAuthEvents>();
 
-//=== dùng reddis để lưu blacklist accesstoken
+// redis connection
 builder.Services.AddSingleton<JwtBlacklistService>();
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(
         builder.Configuration["Redis:ConnectionString"]!
     )
 );
+// jwt blacklist
+
+// permission cache
+builder.Services.AddScoped<PermissionCacheService>();
 
 builder.Services.AddEndpointsApiExplorer();
 // ===== Thêm Swagger/OpenAPI để test API =====
@@ -177,11 +184,9 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseMiddleware<JwtSecurityMiddleware>();
+
 app.UseAuthorization();
+app.UseMiddleware<PermissionMiddleware>();
 
-
-
-// permission check nên sau authorization
-//app.UseMiddleware<PermissionMiddleware>();
 app.MapControllers();
 app.Run();

@@ -1,12 +1,13 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
-using ShopManagementAPI.Middleware;
+
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using ShopManagementAPI.Jwt;
+using ShopManagementAPI.Exceptions;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -17,13 +18,11 @@ namespace ShopManagementAPI.Controllers
     {
         private readonly AuthService _authService;
         private readonly IConfiguration _config;
-        private readonly CurrentUserService _currentUser;
 
-        public AuthController(AuthService authService, IConfiguration config, CurrentUserService currentUser)
+        public AuthController(AuthService authService, IConfiguration config)
         {
             _authService = authService;
             _config = config;
-            _currentUser = currentUser;
         }
 
         [AllowAnonymous]
@@ -48,7 +47,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [AllowAnonymous]
-        [HttpPost("refresh")]
+        [HttpPost("refresh")]   
         public async Task<ActionResult<RefreshResponseDTO>> Refresh()
         {
             // lấy refresh token từ cookie
@@ -85,7 +84,7 @@ namespace ShopManagementAPI.Controllers
 
         [Authorize]
         [HttpGet("me")]
-        public async Task<ActionResult<UserResponseDTO>> GetProfile()
+        public async Task<ActionResult<UserProfileResponseDTO>> GetProfile()
         {
             var result = await _authService.GetProfileAsync();
             return Ok(result);
@@ -95,15 +94,12 @@ namespace ShopManagementAPI.Controllers
         [HttpPost("logout")]
         public async Task<ActionResult<SuccessResponseDTO>> Logout()
         {
-            //lấy Jti và ExpiredAt từ CurrentUserService
-            var jti = _currentUser.Jti;
-            var expClaim = _currentUser.ExpiredAtString;
 
             // lấy refresh token từ cookie
             var refreshToken = Request.Cookies["refreshToken"];
 
             // gọi service logout
-            await _authService.LogoutAsync(jti, expClaim, refreshToken);
+            await _authService.LogoutAsync(refreshToken);
 
             // xóa refresh token trên cookie
             Response.Cookies.Delete("refreshToken");
@@ -119,15 +115,8 @@ namespace ShopManagementAPI.Controllers
         [HttpPost("change-password")]
         public async Task<ActionResult<SuccessResponseDTO>> ChangePassword(ChangePasswordRequestDTO request)
         {
-            // lấy user id từ token
-            var userId = _currentUser.UserId;
-            // lấy jti access token
-            var jti = _currentUser.Jti;
-            
             await _authService.ChangePasswordAsync(
-                userId,
-                request,
-                jti
+                request
             );
             return Ok(new
             {

@@ -3,7 +3,7 @@ using ShopManagementAPI.DTOs;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
 using ShopManagementAPI.Jwt;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models.Enum;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Repositories;
@@ -38,6 +38,7 @@ namespace ShopManagementAPI.Services
             //check login và so sánh password 
             var user = await _repoUser.GetByUsernameWithRolesAsync(dto.Username);
             bool isValid = BCrypt.Net.BCrypt.Verify(dto.Password,user.PasswordHash);
+
             if (user == null||!isValid)
                 throw new UnauthorizedException("Username hoặc password không hợp lệ");
             
@@ -112,16 +113,16 @@ namespace ShopManagementAPI.Services
         {
             var existsUsername = await _repoUser.IsUsernameExists(dto.Username);
             if (existsUsername)
-                throw new BadRequestException("Username already exists");
+                throw new ConflictException("Username already exists");
 
             var existsEmail = await _repoUser.IsEmailExists(dto.Email);
             if (existsEmail)
-                throw new BadRequestException("Email already exists");
+                throw new ConflictException("Email already exists");
 
             //mặc định role khi đăng ký là CUSTOMER
             var customerRole = await _repoRole.GetByNameAsync(RoleType.CUSTOMER);
             if (customerRole == null)
-                throw new Exception("Default role CUSTOMER not found");
+                throw new NotFoundException("Default role CUSTOMER not found");
 
             var user = new User
             {
@@ -138,7 +139,7 @@ namespace ShopManagementAPI.Services
                     }
                 }
             };
-            _repoUser.AddAsync(user);
+            await _repoUser.AddAsync(user);
             await _repoUser.SaveAsync();
 
             return new RegisterResponseDTO
@@ -151,31 +152,27 @@ namespace ShopManagementAPI.Services
             };
         }
 
-        public async Task<UserResponseDTO> GetProfileAsync()
+        public async Task<UserProfileResponseDTO> GetProfileAsync()
         {
             // lấy userId từ JWT
             var userId = _currentUser.UserId;
 
-            // chưa đăng nhập / token invalid
-            if (userId == 0){
-                throw new UnauthorizedException("Bạn chưa đăng nhập hoặc phiên đăng nhập không hợp lệ.");
-            }
-
-            // query DB
+            // query DB lấy dữ liệu user ,roles và permissions
             var user = await _repoUser.GetByIdWithRolesAsync(userId);
+            var permissions = await _repoUser
+                            .GetPermissionNamesAsync(userId);
 
             // token cũ / user bị xóa / user bị khóa
             if (user == null || !user.IsActive)
             {
                 throw new UnauthorizedException("Phiên đăng nhập không hợp lệ hoặc tài khoản đã bị khóa.");
             }
-            return new UserResponseDTO
+            return new UserProfileResponseDTO
             {
                 Id = user.Id,
                 Username = user.Username,
                 FullName = user.FullName,
                 Email = user.Email,
-                IsActive = user.IsActive,
                 Roles = user.UserRoles
                     .Select(x => new RoleItemDTO
                     {
@@ -183,18 +180,19 @@ namespace ShopManagementAPI.Services
                         Name = x.Role.Name
                     })
                     .ToList(),
+                Permissions = permissions,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
         }
 
-        public async Task LogoutAsync(string? jti,string? expClaim,string? refreshToken)
+        public async Task LogoutAsync(string? refreshToken)
         {
             // blacklist access token
-            if (!string.IsNullOrEmpty(jti) &&
+            /*if (!string.IsNullOrEmpty(jti) &&
                 !string.IsNullOrEmpty(expClaim))
             {
-                var expUnix = long.Parse(expClaim);
+                var expUnix = long.TryParse(expClaim);
 
                 var expiredAt = DateTimeOffset
                     .FromUnixTimeSeconds(expUnix)
@@ -204,6 +202,24 @@ namespace ShopManagementAPI.Services
 
                 if (ttl > TimeSpan.Zero){
                     await _jwtBlacklist.BlacklistTokenAsync(jti, ttl);
+                }
+            }*/
+            //jti và expClaim lấy từ CurrentUser
+            var jti = _currentUser.Jti;
+            var expClaim = _currentUser.ExpiredAtString;
+
+            if (long.TryParse(expClaim, out var expUnix))
+            {
+                var expiredAt = DateTimeOffset
+                    .FromUnixTimeSeconds(expUnix)
+                    .UtcDateTime;
+
+                var ttl = expiredAt - DateTime.UtcNow;
+
+                if (ttl > TimeSpan.Zero)
+                {
+                    await _jwtBlacklist
+                        .BlacklistTokenAsync(jti, ttl);
                 }
             }
 
@@ -223,9 +239,19 @@ namespace ShopManagementAPI.Services
             }
         }
 
-        public async Task ChangePasswordAsync(int userId,ChangePasswordRequestDTO request,string jti)
+        public async Task ChangePasswordAsync(ChangePasswordRequestDTO request)
         {
-            var user = await _repoUser.GetByIdAsync(userId);
+            // lấy user id từ token
+            var userId = _currentUser.UserId;
+            // lấy jti access token
+            var jti = _currentUser.Jti;
+            // lấy ExpiredAt 
+            var expClaim = _currentUser.ExpiredAtString;
+
+            var user = await _repoUser.GetByIdAsync(userId) 
+                ?? throw new NotFoundException(
+                        "Người dùng không tồn tại."
+                    );
 
             // check mật khẩu cũ
             bool isCorrectPassword = BCrypt.Net.BCrypt.Verify(
@@ -238,7 +264,7 @@ namespace ShopManagementAPI.Services
                     "Mật khẩu hiện tại không đúng"
                 );
             }
-            // check confirm password
+            // check xác nhận password
             if (request.NewPassword != request.ConfirmPassword)
             {
                 throw new BadRequestException(
@@ -269,10 +295,22 @@ namespace ShopManagementAPI.Services
             
             await _repoUser.SaveAsync();
             // blacklist access token hiện tại
-            await _jwtBlacklist.BlacklistTokenAsync(
-                jti,
-                TimeSpan.FromMinutes(15)
-            );
+            if (long.TryParse(expClaim, out var expUnix))
+            {
+                var expiredAt = DateTimeOffset
+                    .FromUnixTimeSeconds(expUnix)
+                    .UtcDateTime;
+                var ttl = expiredAt - DateTime.UtcNow;
+                
+                // token vẫn còn hạn mới blacklist
+                if (ttl > TimeSpan.Zero)
+                {
+                    await _jwtBlacklist.BlacklistTokenAsync(
+                        jti,
+                        ttl
+                    );
+                }
+            }
         }
 
 

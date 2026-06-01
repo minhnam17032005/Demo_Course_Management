@@ -3,6 +3,7 @@ using ShopManagementAPI.DTOs.response;
 using ShopManagementAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopManagementAPI.Authorization;
 
 namespace ShopManagementAPI.Controllers
 {
@@ -19,6 +20,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetPermissions)]
         [HttpGet]
         public async Task<ActionResult<List<PermissionResponseDTO>>> GetAll()
         {
@@ -27,6 +29,7 @@ namespace ShopManagementAPI.Controllers
         }
 
         [Authorize]
+        [RequirePermission(Permissions.GetPermissionDetail)]
         [HttpGet("{id}")]
         public async Task<ActionResult<PermissionResponseDTO>> GetById(int id)
         {

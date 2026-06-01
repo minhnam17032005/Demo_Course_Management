@@ -2,7 +2,7 @@
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
 using ShopManagementAPI.Jwt;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Models.Enum;
 using ShopManagementAPI.Repositories;
@@ -205,15 +205,39 @@ namespace ShopManagementAPI.Services
 
             return MapToDTO(order);
         }
+        public async Task<List<OrderResponseDTO>> GetMyOrdersAsync()
+        {
+            var userId = _currentUser.UserId;
 
+            var orders = await _repoOrder
+                .GetByUserIdAsync(userId);
+
+            return orders
+                .Select(MapToDTO)
+                .ToList();
+        }
+
+        public async Task<OrderResponseDTO> GetMyOrderByIdAsync(int id)
+        {
+            var userId = _currentUser.UserId;
+
+            var order = await _repoOrder
+                .GetByIdAndUserIdAsync(id, userId);
+
+            if (order == null)
+                throw new NotFoundException(
+                    "Không tìm thấy đơn hàng.");
+
+            return MapToDTO(order);
+        }
         //check trạng thái tiếp theo xem đã hợp lí 
         private void ValidateTransition(OrderStatus current, OrderStatus next)
         {
             if (!AllowedTransitions.TryGetValue(current, out var allowed))
-                throw new BadRequestException("Trạng thái hiện tại không hợp lệ.");
+                throw new ConflictException("Trạng thái hiện tại không hợp lệ.");
 
             if (!allowed.Contains(next))
-                throw new BadRequestException($"Không thể chuyển từ {current} sang {next}");
+                throw new ConflictException($"Không thể chuyển từ {current} sang {next}");
         }
         
         //restock nếu như đơn hàng có trạng thái CANCELLED và RETURNED
@@ -246,6 +270,44 @@ namespace ShopManagementAPI.Services
             }
 
             await _repoProduct.SaveAsync();
+        }
+
+        public async Task<OrderResponseDTO> CancelOrderAsync(int id)
+        {
+            using var tran = await _repoOrder.BeginTransactionAsync();
+            try
+            {
+                var currentUserId = _currentUser.UserId;
+
+                var order = await _repoOrder
+                    .GetByIdAndUserIdAsync(id, currentUserId);
+
+                if (order == null)
+                    throw new NotFoundException(
+                        "Không tìm thấy đơn hàng.");
+
+                if (order.Status != OrderStatus.PENDING)
+                {
+                    throw new BadRequestException(
+                        "Chỉ đơn hàng đang chờ xác nhận mới được hủy.");
+                }
+
+                await RestockAsync(order);
+
+                order.Status = OrderStatus.CANCELLED;
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _repoOrder.SaveAsync();
+
+                await tran.CommitAsync();
+
+                return MapToDTO(order);
+            }
+            catch
+            {
+                await tran.RollbackAsync();
+                throw;
+            }
         }
 
         private OrderResponseDTO MapToDTO(Order order, List<OrderItemResponseDTO> items)

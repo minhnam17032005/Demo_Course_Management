@@ -1,4 +1,4 @@
-﻿namespace ShopManagementAPI.Middleware
+﻿namespace ShopManagementAPI.Exceptions
 {
     public class BadRequestException : Exception
     {

@@ -1,7 +1,7 @@
 ﻿using ShopManagementAPI.Data;
 using ShopManagementAPI.DTOs.request;
 using ShopManagementAPI.DTOs.response;
-using ShopManagementAPI.Middleware;
+using ShopManagementAPI.Exceptions;
 using ShopManagementAPI.Models;
 using ShopManagementAPI.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -26,11 +26,11 @@ namespace ShopManagementAPI.Services
                 ?? throw new NotFoundException("Category not found");
 
             if (!category.IsActive)
-                throw new BadRequestException("Category is inactive");
+                throw new ConflictException("Category is inactive");
 
             // 2. check trùng product trong category
             if (await _repoProduct.ExistsInCategoryAsync(dto.Name, dto.CategoryId))
-                throw new BadRequestException("Product already exists in this category");
+                throw new ConflictException("Product already exists in this category");
 
             // 3. tạo product
             var product = new Product
@@ -55,20 +55,20 @@ namespace ShopManagementAPI.Services
                 ?? throw new NotFoundException("Product not found");
 
             if (!product.IsActive)
-                throw new BadRequestException("Product is inactive");
+                throw new ConflictException("Product is inactive");
 
             var category = await _repoProduct.GetCategoryByIdAsync(dto.CategoryId)
                 ?? throw new NotFoundException("Category not found");
 
             if (!category.IsActive)
-                throw new BadRequestException("Category is inactive");
+                throw new ConflictException("Category is inactive");
 
             if (await _repoProduct.ExistsInCategoryExcludeIdAsync(
                 id,
                 dto.Name,
                 dto.CategoryId))
             {
-                throw new BadRequestException(
+                throw new ConflictException(
                     "Product already exists in this category");
             }
 
@@ -88,7 +88,7 @@ namespace ShopManagementAPI.Services
                 ?? throw new NotFoundException("Product not found");
 
             if (!product.IsActive)
-                throw new BadRequestException("Product is inactive");
+                throw new ConflictException("Product is inactive");
 
             if (dto.Stock < 0)
                 throw new BadRequestException("Stock must be >= 0");
@@ -123,7 +123,7 @@ namespace ShopManagementAPI.Services
 
             // đã inactive rồi
             if (!product.IsActive)
-                throw new BadRequestException("Sản phẩm đã ngừng hoạt động.");
+                throw new ConflictException("Sản phẩm đã ngừng hoạt động.");
 
             // đang nằm trong đơn pending thì không cho ẩn
             var inPendingOrder = await _repoOrderItem.ExistsInPendingOrderAsync(id);
@@ -150,7 +150,7 @@ namespace ShopManagementAPI.Services
                 ?? throw new NotFoundException("Product not found");
 
             if (product.IsActive)
-                throw new BadRequestException("Sản phẩm đang hoạt động.");
+                throw new ConflictException("Sản phẩm đang hoạt động.");
 
             var category = await _repoProduct.GetCategoryByIdAsync(product.CategoryId)
                 ?? throw new NotFoundException("Category not found");
